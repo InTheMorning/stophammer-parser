@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Test Podcast</title>
+    <podcast:guid>feed-guid-123</podcast:guid>
+    <description>A test podcast &amp; description</description>
+    <language>en</language>
+    <pubDate>Mon, 01 Jan 2024 00:00:00 +0000</pubDate>
+    <itunes:image href="https://example.com/image.jpg"/>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:type>episodic</itunes:type>
+    <itunes:author>Test Author</itunes:author>
+    <itunes:owner>
+      <itunes:name>Owner Name</itunes:name>
+    </itunes:owner>
+    <podcast:medium>music</podcast:medium>
+    <item>
+      <guid>track-1</guid>
+      <title>Episode One</title>
+      <pubDate>Sun, 31 Dec 2023 12:00:00 +0000</pubDate>
+      <itunes:duration>1:23:45</itunes:duration>
+      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="12345678"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:season>2</itunes:season>
+      <itunes:explicit>yes</itunes:explicit>
+      <description><![CDATA[<p>Episode one description</p>]]></description>
+      <itunes:author>Episode Author</itunes:author>
+    </item>
+    <item>
+      <guid>track-2</guid>
+      <title>Episode Two</title>
+    </item>
+  </channel>
+</rss>

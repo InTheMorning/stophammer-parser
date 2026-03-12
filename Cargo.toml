@@ -1,0 +1,29 @@
+[package]
+name = "stophammer-parser"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+description = "Declarative RSS/Podcast XML extraction engine"
+
+[dependencies]
+roxmltree = "0.21"
+chrono = "0.4"
+regex = "1"
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "dep:serde_json"]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = "symbols"
+
+[[bin]]
+name = "stophammer-parse"
+required-features = ["serde"]
+
+[lints.clippy]
+pedantic = { level = "deny" }

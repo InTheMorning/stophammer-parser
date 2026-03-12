@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Edge &amp; Cases &lt;Podcast&gt;</title>
+    <podcast:guid>edge-guid</podcast:guid>
+    <description><![CDATA[<b>Bold</b> description with &amp; entities]]></description>
+    <image>
+      <url>https://example.com/fallback-image.jpg</url>
+    </image>
+    <lastBuildDate>Tue, 02 Jan 2024 00:00:00 +0000</lastBuildDate>
+    <itunes:explicit>true</itunes:explicit>
+    <itunes:summary>iTunes summary as description fallback</itunes:summary>
+    <item>
+      <guid>edge-track-1</guid>
+      <title>CDATA Title</title>
+      <itunes:duration>300</itunes:duration>
+    </item>
+    <item>
+      <guid>edge-track-2</guid>
+      <title>Fractional Duration</title>
+      <itunes:duration>62:03.5</itunes:duration>
+    </item>
+    <item>
+      <title>No GUID Track</title>
+    </item>
+  </channel>
+</rss>

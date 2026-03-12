@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Payment Test Feed</title>
+    <podcast:guid>payment-feed-guid</podcast:guid>
+    <podcast:value type="lightning" method="keysend">
+      <podcast:valueRecipient name="Feed Host" type="node" address="feedpubkey123" split="90" customKey="7629169" customValue="feedid123"/>
+      <podcast:valueRecipient name="App Fee" type="node" address="apppubkey456" split="10" fee="true"/>
+    </podcast:value>
+    <item>
+      <guid>payment-track-1</guid>
+      <title>Episode with Payments</title>
+      <podcast:value type="lightning" method="keysend">
+        <podcast:valueRecipient name="Artist" type="node" address="artistpubkey789" split="80"/>
+        <podcast:valueRecipient name="Lightning Addr" type="lnaddress" address="artist@getalby.com" split="20"/>
+        <podcast:valueTimeSplit startTime="60" duration="120" split="50">
+          <podcast:remoteItem feedGuid="remote-feed-guid" itemGuid="remote-item-guid"/>
+        </podcast:valueTimeSplit>
+        <podcast:valueTimeSplit startTime="300" split="30">
+          <podcast:remoteItem feedGuid="remote-feed-2" itemGuid="remote-item-2"/>
+        </podcast:valueTimeSplit>
+      </podcast:value>
+    </item>
+    <item>
+      <guid>payment-track-2</guid>
+      <title>Episode with Remote Percentage</title>
+      <podcast:value type="lightning" method="keysend">
+        <podcast:valueRecipient name="Host" type="node" address="hostpubkey" split="100"/>
+        <podcast:valueTimeSplit startTime="0" remotePercentage="50" split="50">
+          <podcast:remoteItem feedGuid="should-skip" itemGuid="should-skip"/>
+        </podcast:valueTimeSplit>
+      </podcast:value>
+    </item>
+  </channel>
+</rss>
