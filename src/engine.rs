@@ -15,6 +15,9 @@ use crate::types::{
 
 /// Podcast namespace URI used in namespace-aware feeds.
 const PODCAST_NS: &str = "https://podcastindex.org/namespace/1.0";
+/// Legacy Podcast Namespace URI still emitted by some feeds.
+const PODCAST_NS_LEGACY: &str =
+    "https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md";
 
 /// The feed parsing engine.
 ///
@@ -318,11 +321,20 @@ fn find_child<'a>(
     node.children().find(|n| {
         n.is_element()
             && n.tag_name().name() == tag
-            && match ns {
-                Some(uri) => n.tag_name().namespace() == Some(uri),
-                None => true,
-            }
+            && namespace_matches(n.tag_name().namespace(), ns)
     })
+}
+
+fn namespace_matches(actual: Option<&str>, expected: Option<&str>) -> bool {
+    match expected {
+        Some(PODCAST_NS) => is_podcast_namespace(actual),
+        Some(uri) => actual == Some(uri),
+        None => true,
+    }
+}
+
+fn is_podcast_namespace(actual: Option<&str>) -> bool {
+    matches!(actual, Some(PODCAST_NS | PODCAST_NS_LEGACY))
 }
 
 /// Extracts text content from an element, handling both direct text and nested text nodes.
@@ -347,11 +359,11 @@ fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
 
     for value_node in node.children().filter(|n| {
         n.is_element() && n.tag_name().name() == "value"
-            && n.tag_name().namespace() == Some(PODCAST_NS)
+            && is_podcast_namespace(n.tag_name().namespace())
     }) {
         for recipient in value_node.children().filter(|n| {
             n.is_element() && n.tag_name().name() == "valueRecipient"
-                && n.tag_name().namespace() == Some(PODCAST_NS)
+                && is_podcast_namespace(n.tag_name().namespace())
         }) {
             let address = match recipient.attribute("address") {
                 Some(a) if !a.trim().is_empty() => a.trim().to_owned(),
@@ -396,11 +408,11 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
 
     for value_node in node.children().filter(|n| {
         n.is_element() && n.tag_name().name() == "value"
-            && n.tag_name().namespace() == Some(PODCAST_NS)
+            && is_podcast_namespace(n.tag_name().namespace())
     }) {
         for vts in value_node.children().filter(|n| {
             n.is_element() && n.tag_name().name() == "valueTimeSplit"
-                && n.tag_name().namespace() == Some(PODCAST_NS)
+                && is_podcast_namespace(n.tag_name().namespace())
         }) {
             // Skip if remotePercentage is present
             if vts.attribute("remotePercentage").is_some() {
@@ -426,7 +438,7 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
             // Sprint 5 fix: read GUIDs from podcast:remoteItem *child element*
             let remote_item = vts.children().find(|n| {
                 n.is_element() && n.tag_name().name() == "remoteItem"
-                    && n.tag_name().namespace() == Some(PODCAST_NS)
+                    && is_podcast_namespace(n.tag_name().namespace())
             });
 
             let Some(remote) = remote_item else {

@@ -129,3 +129,34 @@ fn owner_name_from_nested_element() {
 
     assert_eq!(feed.owner_name.as_deref(), Some("Owner Name"));
 }
+
+/// Some feeds still use the older GitHub-doc Podcast Namespace URI instead of
+/// the newer podcastindex.org URI. We should accept both.
+#[test]
+fn legacy_podcast_namespace_uri_is_accepted() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md">
+      <channel>
+        <title>Test</title>
+        <podcast:guid>guid</podcast:guid>
+        <podcast:medium>music</podcast:medium>
+        <podcast:value type="lightning" method="keysend">
+          <podcast:valueRecipient name="Host" address="pubkey" split="100"/>
+        </podcast:value>
+        <item>
+          <guid>t1</guid>
+          <title>Track</title>
+          <podcast:episode>1</podcast:episode>
+          <podcast:season>2</podcast:season>
+        </item>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.raw_medium.as_deref(), Some("music"));
+    assert_eq!(feed.feed_payment_routes.len(), 1);
+    assert_eq!(feed.tracks[0].track_number, Some(1));
+    assert_eq!(feed.tracks[0].season, Some(2));
+}
