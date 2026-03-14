@@ -32,6 +32,8 @@ pub struct IngestFeedData {
     pub owner_name: Option<String>,
     /// Channel publication date as Unix seconds.
     pub pub_date: Option<i64>,
+    /// Channel-level `podcast:person` contributors.
+    pub persons: Vec<IngestPerson>,
     /// Feed-level payment recipients (fallback at play time).
     pub feed_payment_routes: Vec<IngestPaymentRoute>,
     /// Parsed tracks (items) from the feed.
@@ -66,10 +68,30 @@ pub struct IngestTrackData {
     pub description: Option<String>,
     /// Per-track author override.
     pub author_name: Option<String>,
+    /// Item-level `podcast:person` contributors.
+    pub persons: Vec<IngestPerson>,
     /// Payment recipients for this track.
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits for this track.
     pub value_time_splits: Vec<IngestValueTimeSplit>,
+}
+
+/// A `podcast:person` contributor entry.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestPerson {
+    /// Source order within the enclosing feed or item.
+    pub position: i64,
+    /// Display name from the element text content.
+    pub name: String,
+    /// Optional contributor role attribute.
+    pub role: Option<String>,
+    /// Optional contributor group attribute.
+    pub group: Option<String>,
+    /// Optional profile/document URL.
+    pub href: Option<String>,
+    /// Optional image URL.
+    pub img: Option<String>,
 }
 
 /// A payment route recipient (wire format before DB row ID assignment).

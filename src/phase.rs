@@ -18,7 +18,7 @@ pub enum Phase {
     Phase2,
     /// Phase 3: `podcast:valueTimeSplit`, `podcast:remoteItem`.
     Phase3,
-    /// Phase 4: `podcast:person` (future).
+    /// Phase 4: `podcast:person` contributor metadata.
     Phase4,
     /// Phase 5: `podcast:images` (future).
     Phase5,

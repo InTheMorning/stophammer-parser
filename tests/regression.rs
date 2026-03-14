@@ -160,3 +160,43 @@ fn legacy_podcast_namespace_uri_is_accepted() {
     assert_eq!(feed.tracks[0].track_number, Some(1));
     assert_eq!(feed.tracks[0].season, Some(2));
 }
+
+/// `podcast:person` entries should be preserved with roles and source order.
+#[test]
+fn podcast_persons_are_extracted_with_roles() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Credits Test</title>
+        <podcast:guid>guid</podcast:guid>
+        <podcast:person role="artist" group="cast" href="https://example.com/alice" img="https://example.com/alice.jpg">Alice</podcast:person>
+        <podcast:person role="producer">Bob</podcast:person>
+        <item>
+          <guid>t1</guid>
+          <title>Track</title>
+          <podcast:person role="artist">Carol</podcast:person>
+          <podcast:person role="guest">Dave</podcast:person>
+        </item>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.persons.len(), 2);
+    assert_eq!(feed.persons[0].position, 0);
+    assert_eq!(feed.persons[0].name, "Alice");
+    assert_eq!(feed.persons[0].role.as_deref(), Some("artist"));
+    assert_eq!(feed.persons[0].group.as_deref(), Some("cast"));
+    assert_eq!(feed.persons[0].href.as_deref(), Some("https://example.com/alice"));
+    assert_eq!(feed.persons[0].img.as_deref(), Some("https://example.com/alice.jpg"));
+    assert_eq!(feed.persons[1].position, 1);
+    assert_eq!(feed.persons[1].name, "Bob");
+    assert_eq!(feed.persons[1].role.as_deref(), Some("producer"));
+
+    assert_eq!(feed.tracks[0].persons.len(), 2);
+    assert_eq!(feed.tracks[0].persons[0].name, "Carol");
+    assert_eq!(feed.tracks[0].persons[0].role.as_deref(), Some("artist"));
+    assert_eq!(feed.tracks[0].persons[1].name, "Dave");
+    assert_eq!(feed.tracks[0].persons[1].role.as_deref(), Some("guest"));
+}

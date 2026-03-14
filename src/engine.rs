@@ -10,7 +10,8 @@ use crate::phase::Phase;
 use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{apply_transform, TransformResult};
 use crate::types::{
-    IngestFeedData, IngestPaymentRoute, IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestFeedData, IngestPaymentRoute, IngestPerson, IngestTrackData, IngestValueTimeSplit,
+    RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -110,6 +111,12 @@ impl FeedParser {
             Vec::new()
         };
 
+        let persons = if self.phases.contains(&Phase::Phase4) {
+            extract_people(&channel)
+        } else {
+            Vec::new()
+        };
+
         // Validate required fields
         let title = feed.title.ok_or(ParseError { kind: ErrorKind::NoTitle })?;
         let feed_guid = feed.feed_guid.ok_or(ParseError { kind: ErrorKind::NoGuid })?;
@@ -129,6 +136,7 @@ impl FeedParser {
             author_name: feed.author_name,
             owner_name: feed.owner_name,
             pub_date: feed.pub_date,
+            persons,
             feed_payment_routes,
             tracks,
         })
@@ -178,6 +186,12 @@ impl FeedParser {
             Vec::new()
         };
 
+        let persons = if self.phases.contains(&Phase::Phase4) {
+            extract_people(item)
+        } else {
+            Vec::new()
+        };
+
         // Extract value time splits (Phase3)
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
             extract_value_time_splits(item)
@@ -198,6 +212,7 @@ impl FeedParser {
             explicit: track.explicit,
             description: track.description,
             author_name: track.author_name,
+            persons,
             payment_routes,
             value_time_splits,
         })
@@ -351,6 +366,36 @@ fn child_text(node: &roxmltree::Node) -> Option<String> {
     } else {
         Some(trimmed.to_owned())
     }
+}
+
+fn nonempty_attr(node: &roxmltree::Node, attr: &str) -> Option<String> {
+    node.attribute(attr)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+/// Extracts direct `podcast:person` children from a feed or item.
+fn extract_people(node: &roxmltree::Node) -> Vec<IngestPerson> {
+    node.children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "person"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .enumerate()
+        .filter_map(|(position, person)| {
+            let name = child_text(&person)?;
+            Some(IngestPerson {
+                position: position as i64,
+                name,
+                role: nonempty_attr(&person, "role"),
+                group: nonempty_attr(&person, "group"),
+                href: nonempty_attr(&person, "href"),
+                img: nonempty_attr(&person, "img"),
+            })
+        })
+        .collect()
 }
 
 /// Extracts `podcast:value > podcast:valueRecipient` payment routes from a node.
