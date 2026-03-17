@@ -106,63 +106,91 @@ fn feed_rules() -> Vec<Rule> {
         // Phase1: podcast:guid
         Rule {
             phase: Phase::Phase1,
-            source: Source::ChildText { tag: "guid", ns: Some(PODCAST_NS) },
+            source: Source::ChildText {
+                tag: "guid",
+                ns: Some(PODCAST_NS),
+            },
             transform: Transform::None,
             target: Target::Feed(FeedField::FeedGuid),
         },
         // Phase1: podcast:medium
         Rule {
             phase: Phase::Phase1,
-            source: Source::ChildText { tag: "medium", ns: Some(PODCAST_NS) },
+            source: Source::ChildText {
+                tag: "medium",
+                ns: Some(PODCAST_NS),
+            },
             transform: Transform::None,
             target: Target::Feed(FeedField::RawMedium),
         },
         // RSS2: title
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "title", ns: None },
+            source: Source::ChildText {
+                tag: "title",
+                ns: None,
+            },
             transform: Transform::DecodeEntities,
             target: Target::Feed(FeedField::Title),
         },
         // RSS2: description (with HTML stripping)
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "description", ns: None },
+            source: Source::ChildText {
+                tag: "description",
+                ns: None,
+            },
             transform: Transform::StripHtml,
             target: Target::Feed(FeedField::Description),
         },
         // iTunes: summary as description fallback
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "summary", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "summary",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::StripHtml,
             target: Target::Feed(FeedField::Description),
         },
         // RSS2: language
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "language", ns: None },
+            source: Source::ChildText {
+                tag: "language",
+                ns: None,
+            },
             transform: Transform::None,
             target: Target::Feed(FeedField::Language),
         },
         // RSS2: pubDate
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "pubDate", ns: None },
+            source: Source::ChildText {
+                tag: "pubDate",
+                ns: None,
+            },
             transform: Transform::ParseDate,
             target: Target::Feed(FeedField::PubDate),
         },
         // RSS2: lastBuildDate as pubDate fallback
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "lastBuildDate", ns: None },
+            source: Source::ChildText {
+                tag: "lastBuildDate",
+                ns: None,
+            },
             transform: Transform::ParseDate,
             target: Target::Feed(FeedField::PubDate),
         },
         // iTunes: image (href attribute)
         Rule {
             phase: Phase::Itunes,
-            source: Source::Attr { tag: "image", ns: Some(ITUNES_NS), attr: "href" },
+            source: Source::Attr {
+                tag: "image",
+                ns: Some(ITUNES_NS),
+                attr: "href",
+            },
             transform: Transform::None,
             target: Target::Feed(FeedField::ImageUrl),
         },
@@ -181,21 +209,30 @@ fn feed_rules() -> Vec<Rule> {
         // iTunes: explicit
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "explicit", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "explicit",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::ExplicitBool,
             target: Target::Feed(FeedField::Explicit),
         },
         // iTunes: type
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "type", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "type",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::None,
             target: Target::Feed(FeedField::ItunesType),
         },
         // iTunes: author
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "author", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "author",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::DecodeEntities,
             target: Target::Feed(FeedField::AuthorName),
         },
@@ -220,110 +257,161 @@ fn track_rules() -> Vec<Rule> {
         // RSS2: guid
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "guid", ns: None },
+            source: Source::ChildText {
+                tag: "guid",
+                ns: None,
+            },
             transform: Transform::None,
             target: Target::Track(TrackField::TrackGuid),
         },
         // RSS2: title
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "title", ns: None },
+            source: Source::ChildText {
+                tag: "title",
+                ns: None,
+            },
             transform: Transform::DecodeEntities,
             target: Target::Track(TrackField::Title),
         },
         // RSS2: pubDate
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "pubDate", ns: None },
+            source: Source::ChildText {
+                tag: "pubDate",
+                ns: None,
+            },
             transform: Transform::ParseDate,
             target: Target::Track(TrackField::PubDate),
         },
         // RSS2: enclosure attributes
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildAttr { tag: "enclosure", ns: None, attr: "url" },
+            source: Source::ChildAttr {
+                tag: "enclosure",
+                ns: None,
+                attr: "url",
+            },
             transform: Transform::None,
             target: Target::Track(TrackField::EnclosureUrl),
         },
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildAttr { tag: "enclosure", ns: None, attr: "type" },
+            source: Source::ChildAttr {
+                tag: "enclosure",
+                ns: None,
+                attr: "type",
+            },
             transform: Transform::None,
             target: Target::Track(TrackField::EnclosureType),
         },
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildAttr { tag: "enclosure", ns: None, attr: "length" },
+            source: Source::ChildAttr {
+                tag: "enclosure",
+                ns: None,
+                attr: "length",
+            },
             transform: Transform::ParseInt,
             target: Target::Track(TrackField::EnclosureBytes),
         },
         // iTunes: duration
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "duration", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "duration",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::ParseDuration,
             target: Target::Track(TrackField::DurationSecs),
         },
         // iTunes: episode number
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "episode", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "episode",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::ParseInt,
             target: Target::Track(TrackField::TrackNumber),
         },
         // Podcast: episode number (fallback)
         Rule {
             phase: Phase::Phase1,
-            source: Source::ChildText { tag: "episode", ns: Some(PODCAST_NS) },
+            source: Source::ChildText {
+                tag: "episode",
+                ns: Some(PODCAST_NS),
+            },
             transform: Transform::ParseInt,
             target: Target::Track(TrackField::TrackNumber),
         },
         // iTunes: season
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "season", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "season",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::ParseInt,
             target: Target::Track(TrackField::Season),
         },
         // Podcast: season (fallback)
         Rule {
             phase: Phase::Phase1,
-            source: Source::ChildText { tag: "season", ns: Some(PODCAST_NS) },
+            source: Source::ChildText {
+                tag: "season",
+                ns: Some(PODCAST_NS),
+            },
             transform: Transform::ParseInt,
             target: Target::Track(TrackField::Season),
         },
         // iTunes: explicit (Sprint 5 fix: accepts both "yes" and "true")
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "explicit", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "explicit",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::ExplicitBool,
             target: Target::Track(TrackField::Explicit),
         },
         // RSS2: description (with HTML stripping)
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "description", ns: None },
+            source: Source::ChildText {
+                tag: "description",
+                ns: None,
+            },
             transform: Transform::StripHtml,
             target: Target::Track(TrackField::Description),
         },
         // iTunes: summary as description fallback
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "summary", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "summary",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::StripHtml,
             target: Target::Track(TrackField::Description),
         },
         // iTunes: author
         Rule {
             phase: Phase::Itunes,
-            source: Source::ChildText { tag: "author", ns: Some(ITUNES_NS) },
+            source: Source::ChildText {
+                tag: "author",
+                ns: Some(ITUNES_NS),
+            },
             transform: Transform::DecodeEntities,
             target: Target::Track(TrackField::AuthorName),
         },
         // RSS2: author fallback
         Rule {
             phase: Phase::Rss2Core,
-            source: Source::ChildText { tag: "author", ns: None },
+            source: Source::ChildText {
+                tag: "author",
+                ns: None,
+            },
             transform: Transform::DecodeEntities,
             target: Target::Track(TrackField::AuthorName),
         },

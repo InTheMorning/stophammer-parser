@@ -5,12 +5,14 @@
 
 use std::collections::HashSet;
 
+use crate::date::parse_date;
 use crate::error::{ErrorKind, ParseError};
 use crate::phase::Phase;
 use crate::rule::{FeedField, Rule, Source, Target, TrackField};
-use crate::transform::{apply_transform, TransformResult};
+use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
-    IngestFeedData, IngestPaymentRoute, IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestFeedData, IngestLiveItemData, IngestPaymentRoute, IngestRemoteFeedRef, IngestTrackData,
+    IngestValueTimeSplit, RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -75,8 +77,9 @@ impl FeedParser {
         let root = doc.root_element();
 
         // Find <channel> — it may be direct child of <rss> or the root itself
-        let channel = find_channel(&root)
-            .ok_or(ParseError { kind: ErrorKind::NoChannel })?;
+        let channel = find_channel(&root).ok_or(ParseError {
+            kind: ErrorKind::NoChannel,
+        })?;
 
         // Apply feed-level rules
         let mut feed = FeedDataBuilder::default();
@@ -109,10 +112,16 @@ impl FeedParser {
         } else {
             Vec::new()
         };
+        let remote_items = extract_feed_remote_items(&channel);
+        let live_items = self.parse_live_items(&channel);
 
         // Validate required fields
-        let title = feed.title.ok_or(ParseError { kind: ErrorKind::NoTitle })?;
-        let feed_guid = feed.feed_guid.ok_or(ParseError { kind: ErrorKind::NoGuid })?;
+        let title = feed.title.ok_or(ParseError {
+            kind: ErrorKind::NoTitle,
+        })?;
+        let feed_guid = feed.feed_guid.ok_or(ParseError {
+            kind: ErrorKind::NoGuid,
+        })?;
 
         // Parse items
         let tracks = self.parse_items(&channel);
@@ -129,7 +138,9 @@ impl FeedParser {
             author_name: feed.author_name,
             owner_name: feed.owner_name,
             pub_date: feed.pub_date,
+            remote_items,
             feed_payment_routes,
+            live_items,
             tracks,
         })
     }
@@ -147,25 +158,26 @@ impl FeedParser {
         tracks
     }
 
-    /// Parses a single `<item>` element into track data.
-    fn parse_item(&self, item: &roxmltree::Node) -> Option<IngestTrackData> {
-        let mut track = TrackDataBuilder::default();
+    /// Parses all `<podcast:liveItem>` elements within the channel.
+    fn parse_live_items(&self, channel: &roxmltree::Node) -> Vec<IngestLiveItemData> {
+        let mut live_items = Vec::new();
 
-        for rule in &self.track_rules {
-            if !self.phases.contains(&rule.phase) {
-                continue;
-            }
-            if let Target::Track(field) = rule.target {
-                if track.is_set(field) {
-                    continue;
-                }
-                if let Some(value) = extract_source(item, &rule.source)
-                    && let Some(result) = apply_transform(rule.transform, &value)
-                {
-                    track.set(field, result);
-                }
+        for live_item in channel.children().filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "liveItem"
+                && is_podcast_namespace(n.tag_name().namespace())
+        }) {
+            if let Some(parsed) = self.parse_live_item(&live_item) {
+                live_items.push(parsed);
             }
         }
+
+        live_items
+    }
+
+    /// Parses a single `<item>` element into track data.
+    fn parse_item(&self, item: &roxmltree::Node) -> Option<IngestTrackData> {
+        let track = self.extract_track_fields(item);
 
         // Track guid and title are required
         let track_guid = track.track_guid?;
@@ -201,6 +213,77 @@ impl FeedParser {
             payment_routes,
             value_time_splits,
         })
+    }
+
+    /// Parses a single `<podcast:liveItem>` element.
+    fn parse_live_item(&self, live_item: &roxmltree::Node) -> Option<IngestLiveItemData> {
+        let track = self.extract_track_fields(live_item);
+        let live_item_guid = track.track_guid?;
+        let title = track.title?;
+        let status = live_item.attribute("status")?.trim().to_ascii_lowercase();
+        if status.is_empty() {
+            return None;
+        }
+
+        let payment_routes = if self.phases.contains(&Phase::Phase2) {
+            extract_payment_routes(live_item)
+        } else {
+            Vec::new()
+        };
+
+        let value_time_splits = if self.phases.contains(&Phase::Phase3) {
+            extract_value_time_splits(live_item)
+        } else {
+            Vec::new()
+        };
+
+        let content_link = live_item
+            .attribute("contentLink")
+            .map(str::to_owned)
+            .or_else(|| track.enclosure_url.clone());
+
+        Some(IngestLiveItemData {
+            live_item_guid,
+            title,
+            status,
+            start_at: live_item.attribute("start").and_then(parse_date),
+            end_at: live_item.attribute("end").and_then(parse_date),
+            content_link,
+            pub_date: track.pub_date,
+            duration_secs: track.duration_secs,
+            enclosure_url: track.enclosure_url,
+            enclosure_type: track.enclosure_type,
+            enclosure_bytes: track.enclosure_bytes,
+            track_number: track.track_number,
+            season: track.season,
+            explicit: track.explicit,
+            description: track.description,
+            author_name: track.author_name,
+            payment_routes,
+            value_time_splits,
+        })
+    }
+
+    fn extract_track_fields(&self, node: &roxmltree::Node) -> TrackDataBuilder {
+        let mut track = TrackDataBuilder::default();
+
+        for rule in &self.track_rules {
+            if !self.phases.contains(&rule.phase) {
+                continue;
+            }
+            if let Target::Track(field) = rule.target {
+                if track.is_set(field) {
+                    continue;
+                }
+                if let Some(value) = extract_source(node, &rule.source)
+                    && let Some(result) = apply_transform(rule.transform, &value)
+                {
+                    track.set(field, result);
+                }
+            }
+        }
+
+        track
     }
 }
 
@@ -282,32 +365,30 @@ fn find_channel<'a>(root: &'a roxmltree::Node<'a, 'a>) -> Option<roxmltree::Node
 /// Extracts a text value from a node according to a [`Source`] specification.
 fn extract_source(node: &roxmltree::Node, source: &Source) -> Option<String> {
     match source {
-        Source::ChildText { tag, ns } => {
-            find_child(node, tag, *ns)
-                .and_then(|n| child_text(&n))
-        }
+        Source::ChildText { tag, ns } => find_child(node, tag, *ns).and_then(|n| child_text(&n)),
         Source::ChildTextFallback { tags } => {
             for &(tag, ref ns) in *tags {
-                if let Some(text) = find_child(node, tag, *ns)
-                    .and_then(|n| child_text(&n))
-                {
+                if let Some(text) = find_child(node, tag, *ns).and_then(|n| child_text(&n)) {
                     return Some(text);
                 }
             }
             None
         }
         Source::ChildAttr { tag, ns, attr } => {
-            find_child(node, tag, *ns)
-                .and_then(|n| n.attribute(*attr).map(String::from))
+            find_child(node, tag, *ns).and_then(|n| n.attribute(*attr).map(String::from))
         }
-        Source::NestedText { parent, parent_ns, child, child_ns } => {
+        Source::NestedText {
+            parent,
+            parent_ns,
+            child,
+            child_ns,
+        } => {
             let parent_node = find_child(node, parent, *parent_ns)?;
             let child_node = find_child(&parent_node, child, *child_ns)?;
             child_text(&child_node)
         }
         Source::Attr { tag, ns, attr } => {
-            find_child(node, tag, *ns)
-                .and_then(|n| n.attribute(*attr).map(String::from))
+            find_child(node, tag, *ns).and_then(|n| n.attribute(*attr).map(String::from))
         }
     }
 }
@@ -340,7 +421,8 @@ fn is_podcast_namespace(actual: Option<&str>) -> bool {
 /// Extracts text content from an element, handling both direct text and nested text nodes.
 fn child_text(node: &roxmltree::Node) -> Option<String> {
     // Collect all text children (handles mixed content, CDATA, etc.)
-    let text: String = node.children()
+    let text: String = node
+        .children()
         .filter(roxmltree::Node::is_text)
         .filter_map(|n| n.text())
         .collect();
@@ -358,11 +440,13 @@ fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
     let mut routes = Vec::new();
 
     for value_node in node.children().filter(|n| {
-        n.is_element() && n.tag_name().name() == "value"
+        n.is_element()
+            && n.tag_name().name() == "value"
             && is_podcast_namespace(n.tag_name().namespace())
     }) {
         for recipient in value_node.children().filter(|n| {
-            n.is_element() && n.tag_name().name() == "valueRecipient"
+            n.is_element()
+                && n.tag_name().name() == "valueRecipient"
                 && is_podcast_namespace(n.tag_name().namespace())
         }) {
             let address = match recipient.attribute("address") {
@@ -407,11 +491,13 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
     let mut splits = Vec::new();
 
     for value_node in node.children().filter(|n| {
-        n.is_element() && n.tag_name().name() == "value"
+        n.is_element()
+            && n.tag_name().name() == "value"
             && is_podcast_namespace(n.tag_name().namespace())
     }) {
         for vts in value_node.children().filter(|n| {
-            n.is_element() && n.tag_name().name() == "valueTimeSplit"
+            n.is_element()
+                && n.tag_name().name() == "valueTimeSplit"
                 && is_podcast_namespace(n.tag_name().namespace())
         }) {
             // Skip if remotePercentage is present
@@ -437,7 +523,8 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
 
             // Sprint 5 fix: read GUIDs from podcast:remoteItem *child element*
             let remote_item = vts.children().find(|n| {
-                n.is_element() && n.tag_name().name() == "remoteItem"
+                n.is_element()
+                    && n.tag_name().name() == "remoteItem"
                     && is_podcast_namespace(n.tag_name().namespace())
             });
 
@@ -466,6 +553,37 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
     }
 
     splits
+}
+
+fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedRef> {
+    let mut refs = Vec::new();
+
+    for (position, remote) in channel
+        .children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "remoteItem"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .enumerate()
+    {
+        let Some(remote_feed_guid) = remote
+            .attribute("feedGuid")
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+        else {
+            continue;
+        };
+
+        refs.push(IngestRemoteFeedRef {
+            position: position as i64,
+            medium: remote.attribute("medium").map(str::to_owned),
+            remote_feed_guid: remote_feed_guid.to_owned(),
+            remote_feed_url: remote.attribute("feedUrl").map(str::to_owned),
+        });
+    }
+
+    refs
 }
 
 // --- Feed/Track data builders ---

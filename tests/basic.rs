@@ -16,9 +16,14 @@ fn parses_minimal_feed() {
     assert_eq!(feed.raw_medium.as_deref(), Some("music"));
     assert_eq!(feed.author_name.as_deref(), Some("Test Author"));
     assert_eq!(feed.owner_name.as_deref(), Some("Owner Name"));
-    assert_eq!(feed.image_url.as_deref(), Some("https://example.com/image.jpg"));
+    assert_eq!(
+        feed.image_url.as_deref(),
+        Some("https://example.com/image.jpg")
+    );
     assert!(!feed.explicit);
     assert_eq!(feed.pub_date, Some(1_704_067_200));
+    assert!(feed.remote_items.is_empty());
+    assert!(feed.live_items.is_empty());
 }
 
 #[test]
@@ -26,7 +31,10 @@ fn parses_feed_description_with_entities() {
     let parser = profile::stophammer();
     let feed = parser.parse(basic_xml()).unwrap();
 
-    assert_eq!(feed.description.as_deref(), Some("A test podcast & description"));
+    assert_eq!(
+        feed.description.as_deref(),
+        Some("A test podcast & description")
+    );
 }
 
 #[test]
@@ -41,13 +49,19 @@ fn parses_all_track_fields() {
     assert_eq!(track.title, "Episode One");
     assert_eq!(track.pub_date, Some(1_704_024_000));
     assert_eq!(track.duration_secs, Some(5025));
-    assert_eq!(track.enclosure_url.as_deref(), Some("https://example.com/ep1.mp3"));
+    assert_eq!(
+        track.enclosure_url.as_deref(),
+        Some("https://example.com/ep1.mp3")
+    );
     assert_eq!(track.enclosure_type.as_deref(), Some("audio/mpeg"));
     assert_eq!(track.enclosure_bytes, Some(12_345_678));
     assert_eq!(track.track_number, Some(1));
     assert_eq!(track.season, Some(2));
     assert!(track.explicit);
-    assert_eq!(track.description.as_deref(), Some("Episode one description"));
+    assert_eq!(
+        track.description.as_deref(),
+        Some("Episode one description")
+    );
     assert_eq!(track.author_name.as_deref(), Some("Episode Author"));
 }
 

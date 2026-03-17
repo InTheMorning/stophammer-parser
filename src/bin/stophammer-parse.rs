@@ -56,18 +56,16 @@ fn main() -> ExitCode {
     };
 
     match parser.parse(&xml) {
-        Ok(feed) => {
-            match serde_json::to_string(&feed) {
-                Ok(json) => {
-                    println!("{json}");
-                    ExitCode::SUCCESS
-                }
-                Err(e) => {
-                    eprintln!("{{\"error\": \"JSON serialization failed: {e}\"}}");
-                    ExitCode::from(1)
-                }
+        Ok(feed) => match serde_json::to_string(&feed) {
+            Ok(json) => {
+                println!("{json}");
+                ExitCode::SUCCESS
             }
-        }
+            Err(e) => {
+                eprintln!("{{\"error\": \"JSON serialization failed: {e}\"}}");
+                ExitCode::from(1)
+            }
+        },
         Err(e) => {
             eprintln!("{{\"error\": \"{e}\"}}");
             ExitCode::from(1)

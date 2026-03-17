@@ -1,7 +1,7 @@
 //! Regression tests for Sprint 5 bugs fixed across the TS crawlers.
 
-use stophammer_parser::profile;
 use stophammer_parser::RouteType;
+use stophammer_parser::profile;
 
 /// Sprint 5 Bug 1: `route_type` defaults to "node", not "lightning".
 /// The old TS parsers defaulted unknown types to "lightning" which is
@@ -159,4 +159,66 @@ fn legacy_podcast_namespace_uri_is_accepted() {
     assert_eq!(feed.feed_payment_routes.len(), 1);
     assert_eq!(feed.tracks[0].track_number, Some(1));
     assert_eq!(feed.tracks[0].season, Some(2));
+}
+
+#[test]
+fn feed_level_remote_item_is_extracted() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Remote Feed Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem medium="publisher" feedGuid="artist-feed-guid" feedUrl="https://example.com/artist.xml" />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items.len(), 1);
+    assert_eq!(feed.remote_items[0].medium.as_deref(), Some("publisher"));
+    assert_eq!(feed.remote_items[0].remote_feed_guid, "artist-feed-guid");
+    assert_eq!(
+        feed.remote_items[0].remote_feed_url.as_deref(),
+        Some("https://example.com/artist.xml")
+    );
+}
+
+#[test]
+fn live_item_is_extracted_separately_from_tracks() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0"
+         xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+      <channel>
+        <title>Live Feed Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:medium>music</podcast:medium>
+        <podcast:liveItem status="live" start="2026-03-17T00:00:00Z" end="2026-03-17T01:00:00Z">
+          <guid>live-guid-1</guid>
+          <title>Live Show</title>
+          <description>Going live</description>
+          <enclosure url="https://stream.example.com/live.mp3" length="123" type="audio/mpeg" />
+          <itunes:duration>00:10:00</itunes:duration>
+        </podcast:liveItem>
+        <item>
+          <guid>track-guid-1</guid>
+          <title>Recorded Track</title>
+        </item>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.live_items.len(), 1);
+    assert_eq!(feed.tracks.len(), 1);
+    assert_eq!(feed.live_items[0].live_item_guid, "live-guid-1");
+    assert_eq!(feed.live_items[0].title, "Live Show");
+    assert_eq!(feed.live_items[0].status, "live");
+    assert_eq!(feed.live_items[0].start_at, Some(1_773_705_600));
+    assert_eq!(feed.live_items[0].end_at, Some(1_773_709_200));
+    assert_eq!(
+        feed.live_items[0].content_link.as_deref(),
+        Some("https://stream.example.com/live.mp3")
+    );
 }

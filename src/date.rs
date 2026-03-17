@@ -58,10 +58,7 @@ mod tests {
 
     #[test]
     fn iso8601() {
-        assert_eq!(
-            parse_date("2024-01-01T00:00:00Z"),
-            Some(1_704_067_200)
-        );
+        assert_eq!(parse_date("2024-01-01T00:00:00Z"), Some(1_704_067_200));
     }
 
     #[test]

@@ -29,11 +29,7 @@ fn rss2_only_excludes_itunes_fields() {
 
 #[test]
 fn phase2_enables_payments() {
-    let parser = profile::stophammer_phases_only(&[
-        Phase::Rss2Core,
-        Phase::Phase1,
-        Phase::Phase2,
-    ]);
+    let parser = profile::stophammer_phases_only(&[Phase::Rss2Core, Phase::Phase1, Phase::Phase2]);
     let xml = include_str!("fixtures/payment.xml");
     let feed = parser.parse(xml).unwrap();
 

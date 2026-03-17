@@ -4,9 +4,8 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-static HTML_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"<[^>]+>").expect("html tag regex is valid")
-});
+static HTML_TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"<[^>]+>").expect("html tag regex is valid"));
 
 /// Strips HTML tags and decodes common entities.
 ///
@@ -119,7 +118,10 @@ mod tests {
 
     #[test]
     fn decode_named_entities() {
-        assert_eq!(decode_entities("&amp; &lt; &gt; &quot; &apos;"), "& < > \" '");
+        assert_eq!(
+            decode_entities("&amp; &lt; &gt; &quot; &apos;"),
+            "& < > \" '"
+        );
     }
 
     #[test]

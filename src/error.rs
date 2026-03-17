@@ -43,7 +43,10 @@ impl ParseError {
     /// Returns `true` if the error is due to a missing required field.
     #[must_use]
     pub fn is_missing_field(&self) -> bool {
-        matches!(self.kind, ErrorKind::NoChannel | ErrorKind::NoTitle | ErrorKind::NoGuid)
+        matches!(
+            self.kind,
+            ErrorKind::NoChannel | ErrorKind::NoTitle | ErrorKind::NoGuid
+        )
     }
 }
 
@@ -69,6 +72,8 @@ impl std::error::Error for ParseError {
 
 impl From<roxmltree::Error> for ParseError {
     fn from(e: roxmltree::Error) -> Self {
-        Self { kind: ErrorKind::Xml(e) }
+        Self {
+            kind: ErrorKind::Xml(e),
+        }
     }
 }

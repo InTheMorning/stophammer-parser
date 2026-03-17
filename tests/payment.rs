@@ -1,5 +1,5 @@
-use stophammer_parser::profile;
 use stophammer_parser::RouteType;
+use stophammer_parser::profile;
 
 fn payment_xml() -> &'static str {
     include_str!("fixtures/payment.xml")

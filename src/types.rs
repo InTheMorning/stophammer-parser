@@ -32,8 +32,12 @@ pub struct IngestFeedData {
     pub owner_name: Option<String>,
     /// Channel publication date as Unix seconds.
     pub pub_date: Option<i64>,
+    /// Feed-level `podcast:remoteItem` references to artist/publisher feeds.
+    pub remote_items: Vec<IngestRemoteFeedRef>,
     /// Feed-level payment recipients (fallback at play time).
     pub feed_payment_routes: Vec<IngestPaymentRoute>,
+    /// Parsed live items that have not yet been promoted to permanent tracks.
+    pub live_items: Vec<IngestLiveItemData>,
     /// Parsed tracks (items) from the feed.
     pub tracks: Vec<IngestTrackData>,
 }
@@ -69,6 +73,62 @@ pub struct IngestTrackData {
     /// Payment recipients for this track.
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits for this track.
+    pub value_time_splits: Vec<IngestValueTimeSplit>,
+}
+
+/// A channel-level `podcast:remoteItem` reference.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestRemoteFeedRef {
+    /// Source order within the channel.
+    pub position: i64,
+    /// Optional relation hint, commonly `publisher`.
+    pub medium: Option<String>,
+    /// Referenced remote feed GUID.
+    pub remote_feed_guid: String,
+    /// Optional remote feed URL.
+    pub remote_feed_url: Option<String>,
+}
+
+/// Parsed `podcast:liveItem` data.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestLiveItemData {
+    /// Live item GUID from `<guid>`.
+    pub live_item_guid: String,
+    /// Live item title.
+    pub title: String,
+    /// Current live status (`pending`, `live`, `ended`).
+    pub status: String,
+    /// Scheduled or actual start time as Unix seconds.
+    pub start_at: Option<i64>,
+    /// Scheduled or actual end time as Unix seconds.
+    pub end_at: Option<i64>,
+    /// Content/live stream URL if present.
+    pub content_link: Option<String>,
+    /// Publication date as Unix seconds.
+    pub pub_date: Option<i64>,
+    /// Duration in seconds.
+    pub duration_secs: Option<i64>,
+    /// Enclosure media URL.
+    pub enclosure_url: Option<String>,
+    /// Enclosure MIME type.
+    pub enclosure_type: Option<String>,
+    /// Enclosure size in bytes.
+    pub enclosure_bytes: Option<i64>,
+    /// Episode number.
+    pub track_number: Option<i64>,
+    /// Season number.
+    pub season: Option<i64>,
+    /// Whether the live item is marked explicit.
+    pub explicit: bool,
+    /// Description, HTML-stripped.
+    pub description: Option<String>,
+    /// Per-item author override.
+    pub author_name: Option<String>,
+    /// Payment recipients attached to the live item.
+    pub payment_routes: Vec<IngestPaymentRoute>,
+    /// Value time splits attached to the live item.
     pub value_time_splits: Vec<IngestValueTimeSplit>,
 }
 
