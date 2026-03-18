@@ -43,6 +43,6 @@ pub mod types;
 pub use engine::FeedParser;
 pub use error::ParseError;
 pub use types::{
-    IngestEntityId, IngestFeedData, IngestLiveItemData, IngestPaymentRoute, IngestPerson,
-    IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute,
+    IngestPerson, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
 };

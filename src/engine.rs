@@ -11,8 +11,8 @@ use crate::phase::Phase;
 use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
-    IngestEntityId, IngestFeedData, IngestLiveItemData, IngestPaymentRoute, IngestPerson,
-    IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute,
+    IngestPerson, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -20,6 +20,8 @@ const PODCAST_NS: &str = "https://podcastindex.org/namespace/1.0";
 /// Legacy Podcast Namespace URI still emitted by some feeds.
 const PODCAST_NS_LEGACY: &str =
     "https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md";
+/// Atom namespace URI for `<atom:link rel="self">`.
+const ATOM_NS: &str = "http://www.w3.org/2005/Atom";
 
 /// The feed parsing engine.
 ///
@@ -123,6 +125,7 @@ impl FeedParser {
         } else {
             Vec::new()
         };
+        let links = extract_links(&channel, "feed");
         let live_items = self.parse_live_items(&channel);
 
         // Validate required fields
@@ -151,6 +154,7 @@ impl FeedParser {
             remote_items,
             persons,
             entity_ids,
+            links,
             feed_payment_routes,
             live_items,
             tracks,
@@ -211,6 +215,7 @@ impl FeedParser {
         } else {
             Vec::new()
         };
+        let links = extract_links(item, "track");
 
         // Extract value time splits (Phase3)
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
@@ -234,6 +239,7 @@ impl FeedParser {
             author_name: track.author_name,
             persons,
             entity_ids,
+            links,
             payment_routes,
             value_time_splits,
         })
@@ -264,6 +270,7 @@ impl FeedParser {
         } else {
             Vec::new()
         };
+        let links = extract_links(live_item, "live_item");
 
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
             extract_value_time_splits(live_item)
@@ -295,6 +302,7 @@ impl FeedParser {
             author_name: track.author_name,
             persons,
             entity_ids,
+            links,
             payment_routes,
             value_time_splits,
         })
@@ -666,6 +674,61 @@ fn extract_entity_ids(node: &roxmltree::Node) -> Vec<IngestEntityId> {
             })
         })
         .collect()
+}
+
+fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
+    let mut links = Vec::new();
+
+    for child in node.children().filter(roxmltree::Node::is_element) {
+        let link_type = match (child.tag_name().namespace(), child.tag_name().name(), entity_type) {
+            (None, "link", "feed") => Some("website"),
+            (None, "link", "track") => Some("web_page"),
+            (None, "link", "live_item") => Some("web_page"),
+            (Some(ATOM_NS), "link", "feed")
+                if child.attribute("rel").is_some_and(|rel| rel.eq_ignore_ascii_case("self")) =>
+            {
+                Some("self_feed")
+            }
+            _ => None,
+        };
+
+        let Some(link_type) = link_type else {
+            continue;
+        };
+
+        let url = if child.tag_name().namespace() == Some(ATOM_NS) {
+            child
+                .attribute("href")
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned)
+        } else {
+            child_text(&child)
+                .map(|text| text.trim().to_owned())
+                .filter(|s| !s.is_empty())
+        };
+
+        let Some(url) = url else { continue };
+
+        links.push(IngestLink {
+            position: links.len() as i64,
+            link_type: link_type.to_owned(),
+            url,
+        });
+    }
+
+    if entity_type == "live_item"
+        && let Some(content_link) = node.attribute("contentLink").map(str::trim)
+        && !content_link.is_empty()
+    {
+        links.push(IngestLink {
+            position: links.len() as i64,
+            link_type: "content_stream".to_owned(),
+            url: content_link.to_owned(),
+        });
+    }
+
+    links
 }
 
 // --- Feed/Track data builders ---

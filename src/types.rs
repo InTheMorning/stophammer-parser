@@ -38,6 +38,8 @@ pub struct IngestFeedData {
     pub persons: Vec<IngestPerson>,
     /// Feed-level identity claims from typed metadata such as `podcast:txt`.
     pub entity_ids: Vec<IngestEntityId>,
+    /// Feed-level typed links such as websites or self-feed URLs.
+    pub links: Vec<IngestLink>,
     /// Feed-level payment recipients (fallback at play time).
     pub feed_payment_routes: Vec<IngestPaymentRoute>,
     /// Parsed live items that have not yet been promoted to permanent tracks.
@@ -78,6 +80,8 @@ pub struct IngestTrackData {
     pub persons: Vec<IngestPerson>,
     /// Identity claims from per-item typed metadata such as `podcast:txt`.
     pub entity_ids: Vec<IngestEntityId>,
+    /// Typed links attached to the item.
+    pub links: Vec<IngestLink>,
     /// Payment recipients for this track.
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits for this track.
@@ -128,6 +132,18 @@ pub struct IngestEntityId {
     pub value: String,
 }
 
+/// A typed source link extracted from the feed.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestLink {
+    /// Source order within the enclosing feed/item/liveItem.
+    pub position: i64,
+    /// Normalized link type.
+    pub link_type: String,
+    /// Raw URL value.
+    pub url: String,
+}
+
 /// Parsed `podcast:liveItem` data.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -168,6 +184,8 @@ pub struct IngestLiveItemData {
     pub persons: Vec<IngestPerson>,
     /// Identity claims from typed metadata such as `podcast:txt`.
     pub entity_ids: Vec<IngestEntityId>,
+    /// Typed links attached to the live item.
+    pub links: Vec<IngestLink>,
     /// Payment recipients attached to the live item.
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits attached to the live item.
