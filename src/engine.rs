@@ -680,40 +680,40 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
     let mut links = Vec::new();
 
     for child in node.children().filter(roxmltree::Node::is_element) {
-        let link_type = match (child.tag_name().namespace(), child.tag_name().name(), entity_type) {
-            (None, "link", "feed") => Some("website"),
-            (None, "link", "track") => Some("web_page"),
-            (None, "link", "live_item") => Some("web_page"),
+        let link_meta = match (child.tag_name().namespace(), child.tag_name().name(), entity_type) {
+            (None, "link", "feed") => Some(("website", "feed.link")),
+            (None, "link", "track") => Some(("web_page", "entity.link")),
+            (None, "link", "live_item") => Some(("web_page", "entity.link")),
             (Some(ATOM_NS), "link", "feed")
                 if child.attribute("rel").is_some_and(|rel| rel.eq_ignore_ascii_case("self")) =>
             {
-                Some("self_feed")
+                Some(("self_feed", "feed.atom:link[@rel='self']"))
             }
             (Some(ATOM_NS), "link", "feed")
                 if child
                     .attribute("rel")
                     .is_some_and(|rel| rel.eq_ignore_ascii_case("alternate")) =>
             {
-                Some("website")
+                Some(("website", "feed.atom:link[@rel='alternate']"))
             }
             (Some(ATOM_NS), "link", "track")
                 if child
                     .attribute("rel")
                     .is_some_and(|rel| rel.eq_ignore_ascii_case("alternate")) =>
             {
-                Some("web_page")
+                Some(("web_page", "entity.atom:link[@rel='alternate']"))
             }
             (Some(ATOM_NS), "link", "live_item")
                 if child
                     .attribute("rel")
                     .is_some_and(|rel| rel.eq_ignore_ascii_case("alternate")) =>
             {
-                Some("web_page")
+                Some(("web_page", "entity.atom:link[@rel='alternate']"))
             }
             _ => None,
         };
 
-        let Some(link_type) = link_type else {
+        let Some((link_type, extraction_path)) = link_meta else {
             continue;
         };
 
@@ -735,6 +735,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             position: links.len() as i64,
             link_type: link_type.to_owned(),
             url,
+            extraction_path: extraction_path.to_owned(),
         });
     }
 
@@ -746,6 +747,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             position: links.len() as i64,
             link_type: "content_stream".to_owned(),
             url: content_link.to_owned(),
+            extraction_path: "live_item.@contentLink".to_owned(),
         });
     }
 

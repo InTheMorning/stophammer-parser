@@ -142,6 +142,9 @@ pub struct IngestLink {
     pub link_type: String,
     /// Raw URL value.
     pub url: String,
+    /// Source extraction path within the feed.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub extraction_path: String,
 }
 
 /// Parsed `podcast:liveItem` data.

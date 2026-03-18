@@ -334,19 +334,38 @@ fn feed_track_and_live_item_links_are_extracted() {
     assert_eq!(feed.links.len(), 3);
     assert_eq!(feed.links[0].link_type, "website");
     assert_eq!(feed.links[0].url, "https://example.com/artist");
+    assert_eq!(feed.links[0].extraction_path, "feed.link");
     assert_eq!(feed.links[1].link_type, "website");
     assert_eq!(feed.links[1].url, "https://example.com/artist-home");
+    assert_eq!(
+        feed.links[1].extraction_path,
+        "feed.atom:link[@rel='alternate']"
+    );
     assert_eq!(feed.links[2].link_type, "self_feed");
+    assert_eq!(feed.links[2].extraction_path, "feed.atom:link[@rel='self']");
 
     assert_eq!(feed.tracks[0].links.len(), 2);
     assert_eq!(feed.tracks[0].links[0].link_type, "web_page");
     assert_eq!(feed.tracks[0].links[0].url, "https://example.com/song");
+    assert_eq!(feed.tracks[0].links[0].extraction_path, "entity.link");
     assert_eq!(feed.tracks[0].links[1].link_type, "web_page");
     assert_eq!(feed.tracks[0].links[1].url, "https://example.com/song-home");
+    assert_eq!(
+        feed.tracks[0].links[1].extraction_path,
+        "entity.atom:link[@rel='alternate']"
+    );
 
     assert_eq!(feed.live_items[0].links.len(), 2);
     assert_eq!(feed.live_items[0].links[0].link_type, "web_page");
     assert_eq!(feed.live_items[0].links[0].url, "https://example.com/live-show");
+    assert_eq!(
+        feed.live_items[0].links[0].extraction_path,
+        "entity.atom:link[@rel='alternate']"
+    );
     assert_eq!(feed.live_items[0].links[1].link_type, "content_stream");
     assert_eq!(feed.live_items[0].links[1].url, "https://stream.example.com/live.mp3");
+    assert_eq!(
+        feed.live_items[0].links[1].extraction_path,
+        "live_item.@contentLink"
+    );
 }
