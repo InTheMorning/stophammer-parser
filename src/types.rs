@@ -34,6 +34,10 @@ pub struct IngestFeedData {
     pub pub_date: Option<i64>,
     /// Feed-level `podcast:remoteItem` references to artist/publisher feeds.
     pub remote_items: Vec<IngestRemoteFeedRef>,
+    /// Feed-level contributor claims from `podcast:person`.
+    pub persons: Vec<IngestPerson>,
+    /// Feed-level identity claims from typed metadata such as `podcast:txt`.
+    pub entity_ids: Vec<IngestEntityId>,
     /// Feed-level payment recipients (fallback at play time).
     pub feed_payment_routes: Vec<IngestPaymentRoute>,
     /// Parsed live items that have not yet been promoted to permanent tracks.
@@ -70,6 +74,10 @@ pub struct IngestTrackData {
     pub description: Option<String>,
     /// Per-track author override.
     pub author_name: Option<String>,
+    /// Contributor claims from per-item `podcast:person`.
+    pub persons: Vec<IngestPerson>,
+    /// Identity claims from per-item typed metadata such as `podcast:txt`.
+    pub entity_ids: Vec<IngestEntityId>,
     /// Payment recipients for this track.
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits for this track.
@@ -88,6 +96,36 @@ pub struct IngestRemoteFeedRef {
     pub remote_feed_guid: String,
     /// Optional remote feed URL.
     pub remote_feed_url: Option<String>,
+}
+
+/// A `podcast:person` contributor claim.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestPerson {
+    /// Source order within the enclosing feed/item/liveItem.
+    pub position: i64,
+    /// Display name published by the feed.
+    pub name: String,
+    /// Role attribute, when present.
+    pub role: Option<String>,
+    /// Group attribute, when present.
+    pub group_name: Option<String>,
+    /// Href attribute, when present.
+    pub href: Option<String>,
+    /// Img attribute, when present.
+    pub img: Option<String>,
+}
+
+/// A staged external identity claim extracted from typed feed metadata.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestEntityId {
+    /// Source order within the enclosing feed/item/liveItem.
+    pub position: i64,
+    /// Canonical scheme name for the extracted ID.
+    pub scheme: String,
+    /// Raw value published by the feed.
+    pub value: String,
 }
 
 /// Parsed `podcast:liveItem` data.
@@ -126,6 +164,10 @@ pub struct IngestLiveItemData {
     pub description: Option<String>,
     /// Per-item author override.
     pub author_name: Option<String>,
+    /// Contributor claims from `podcast:person`.
+    pub persons: Vec<IngestPerson>,
+    /// Identity claims from typed metadata such as `podcast:txt`.
+    pub entity_ids: Vec<IngestEntityId>,
     /// Payment recipients attached to the live item.
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits attached to the live item.

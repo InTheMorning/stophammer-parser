@@ -18,11 +18,11 @@ pub enum Phase {
     Phase2,
     /// Phase 3: `podcast:valueTimeSplit`, `podcast:remoteItem`.
     Phase3,
-    /// Phase 4: `podcast:person` (future).
+    /// Phase 4: `podcast:person`.
     Phase4,
     /// Phase 5: `podcast:images` (future).
     Phase5,
-    /// Phase 6: `podcast:txt` (future).
+    /// Phase 6: typed `podcast:txt` claims such as `purpose="npub"`.
     Phase6,
     /// Not yet assigned to a phase.
     Pending,

@@ -11,8 +11,8 @@ use crate::phase::Phase;
 use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
-    IngestFeedData, IngestLiveItemData, IngestPaymentRoute, IngestRemoteFeedRef, IngestTrackData,
-    IngestValueTimeSplit, RouteType,
+    IngestEntityId, IngestFeedData, IngestLiveItemData, IngestPaymentRoute, IngestPerson,
+    IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -113,6 +113,16 @@ impl FeedParser {
             Vec::new()
         };
         let remote_items = extract_feed_remote_items(&channel);
+        let persons = if self.phases.contains(&Phase::Phase4) {
+            extract_persons(&channel)
+        } else {
+            Vec::new()
+        };
+        let entity_ids = if self.phases.contains(&Phase::Phase6) {
+            extract_entity_ids(&channel)
+        } else {
+            Vec::new()
+        };
         let live_items = self.parse_live_items(&channel);
 
         // Validate required fields
@@ -139,6 +149,8 @@ impl FeedParser {
             owner_name: feed.owner_name,
             pub_date: feed.pub_date,
             remote_items,
+            persons,
+            entity_ids,
             feed_payment_routes,
             live_items,
             tracks,
@@ -189,6 +201,16 @@ impl FeedParser {
         } else {
             Vec::new()
         };
+        let persons = if self.phases.contains(&Phase::Phase4) {
+            extract_persons(item)
+        } else {
+            Vec::new()
+        };
+        let entity_ids = if self.phases.contains(&Phase::Phase6) {
+            extract_entity_ids(item)
+        } else {
+            Vec::new()
+        };
 
         // Extract value time splits (Phase3)
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
@@ -210,6 +232,8 @@ impl FeedParser {
             explicit: track.explicit,
             description: track.description,
             author_name: track.author_name,
+            persons,
+            entity_ids,
             payment_routes,
             value_time_splits,
         })
@@ -227,6 +251,16 @@ impl FeedParser {
 
         let payment_routes = if self.phases.contains(&Phase::Phase2) {
             extract_payment_routes(live_item)
+        } else {
+            Vec::new()
+        };
+        let persons = if self.phases.contains(&Phase::Phase4) {
+            extract_persons(live_item)
+        } else {
+            Vec::new()
+        };
+        let entity_ids = if self.phases.contains(&Phase::Phase6) {
+            extract_entity_ids(live_item)
         } else {
             Vec::new()
         };
@@ -259,6 +293,8 @@ impl FeedParser {
             explicit: track.explicit,
             description: track.description,
             author_name: track.author_name,
+            persons,
+            entity_ids,
             payment_routes,
             value_time_splits,
         })
@@ -584,6 +620,52 @@ fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedR
     }
 
     refs
+}
+
+fn extract_persons(node: &roxmltree::Node) -> Vec<IngestPerson> {
+    node.children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "person"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .enumerate()
+        .filter_map(|(position, child)| {
+            let name = child_text(&child)?;
+            Some(IngestPerson {
+                position: position as i64,
+                name,
+                role: child.attribute("role").map(str::to_owned),
+                group_name: child.attribute("group").map(str::to_owned),
+                href: child.attribute("href").map(str::to_owned),
+                img: child.attribute("img").map(str::to_owned),
+            })
+        })
+        .collect()
+}
+
+fn extract_entity_ids(node: &roxmltree::Node) -> Vec<IngestEntityId> {
+    node.children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "txt"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .enumerate()
+        .filter_map(|(position, child)| {
+            let purpose = child.attribute("purpose")?.trim().to_ascii_lowercase();
+            let scheme = match purpose.as_str() {
+                "npub" => "nostr_npub",
+                _ => return None,
+            };
+            let value = child_text(&child)?;
+            Some(IngestEntityId {
+                position: position as i64,
+                scheme: scheme.to_owned(),
+                value,
+            })
+        })
+        .collect()
 }
 
 // --- Feed/Track data builders ---

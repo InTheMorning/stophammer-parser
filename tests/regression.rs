@@ -222,3 +222,83 @@ fn live_item_is_extracted_separately_from_tracks() {
         Some("https://stream.example.com/live.mp3")
     );
 }
+
+#[test]
+fn podcast_persons_are_extracted_for_feed_track_and_live_item() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>People Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:person role="bandleader" group="music" href="https://example.com/artist" img="https://example.com/artist.jpg">Alice</podcast:person>
+        <podcast:liveItem status="live">
+          <guid>live-guid-1</guid>
+          <title>Live Show</title>
+          <podcast:person role="host" group="cast">MC</podcast:person>
+        </podcast:liveItem>
+        <item>
+          <guid>track-guid-1</guid>
+          <title>Song</title>
+          <podcast:person role="guitarist" group="music">Bob</podcast:person>
+        </item>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.persons.len(), 1);
+    assert_eq!(feed.persons[0].name, "Alice");
+    assert_eq!(feed.persons[0].role.as_deref(), Some("bandleader"));
+    assert_eq!(feed.persons[0].group_name.as_deref(), Some("music"));
+    assert_eq!(feed.persons[0].href.as_deref(), Some("https://example.com/artist"));
+    assert_eq!(
+        feed.persons[0].img.as_deref(),
+        Some("https://example.com/artist.jpg")
+    );
+
+    assert_eq!(feed.tracks[0].persons.len(), 1);
+    assert_eq!(feed.tracks[0].persons[0].name, "Bob");
+    assert_eq!(feed.tracks[0].persons[0].role.as_deref(), Some("guitarist"));
+
+    assert_eq!(feed.live_items[0].persons.len(), 1);
+    assert_eq!(feed.live_items[0].persons[0].name, "MC");
+    assert_eq!(feed.live_items[0].persons[0].group_name.as_deref(), Some("cast"));
+}
+
+#[test]
+fn podcast_txt_npub_is_extracted_as_entity_id_claim() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Identity Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:txt purpose="npub">npub1feedidentity</podcast:txt>
+        <item>
+          <guid>track-guid-1</guid>
+          <title>Song</title>
+          <podcast:txt purpose="npub">npub1trackidentity</podcast:txt>
+        </item>
+        <podcast:liveItem status="pending">
+          <guid>live-guid-1</guid>
+          <title>Live Show</title>
+          <podcast:txt purpose="npub">npub1liveidentity</podcast:txt>
+        </podcast:liveItem>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.entity_ids.len(), 1);
+    assert_eq!(feed.entity_ids[0].scheme, "nostr_npub");
+    assert_eq!(feed.entity_ids[0].value, "npub1feedidentity");
+
+    assert_eq!(feed.tracks[0].entity_ids.len(), 1);
+    assert_eq!(feed.tracks[0].entity_ids[0].scheme, "nostr_npub");
+    assert_eq!(feed.tracks[0].entity_ids[0].value, "npub1trackidentity");
+
+    assert_eq!(feed.live_items[0].entity_ids.len(), 1);
+    assert_eq!(feed.live_items[0].entity_ids[0].scheme, "nostr_npub");
+    assert_eq!(feed.live_items[0].entity_ids[0].value, "npub1liveidentity");
+}
