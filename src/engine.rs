@@ -11,8 +11,9 @@ use crate::phase::Phase;
 use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
-    IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute,
-    IngestPerson, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestAlternateEnclosure, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
+    IngestPaymentRoute, IngestPerson, IngestRemoteFeedRef, IngestTrackData,
+    IngestValueTimeSplit, RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -216,6 +217,7 @@ impl FeedParser {
             Vec::new()
         };
         let links = extract_links(item, "track");
+        let alternate_enclosures = extract_alternate_enclosures(item);
 
         // Extract value time splits (Phase3)
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
@@ -232,6 +234,7 @@ impl FeedParser {
             enclosure_url: track.enclosure_url,
             enclosure_type: track.enclosure_type,
             enclosure_bytes: track.enclosure_bytes,
+            alternate_enclosures,
             track_number: track.track_number,
             season: track.season,
             explicit: track.explicit,
@@ -271,6 +274,7 @@ impl FeedParser {
             Vec::new()
         };
         let links = extract_links(live_item, "live_item");
+        let alternate_enclosures = extract_alternate_enclosures(live_item);
 
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
             extract_value_time_splits(live_item)
@@ -295,6 +299,7 @@ impl FeedParser {
             enclosure_url: track.enclosure_url,
             enclosure_type: track.enclosure_type,
             enclosure_bytes: track.enclosure_bytes,
+            alternate_enclosures,
             track_number: track.track_number,
             season: track.season,
             explicit: track.explicit,
@@ -752,6 +757,60 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
     }
 
     links
+}
+
+fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEnclosure> {
+    let mut enclosures = Vec::new();
+
+    for child in node.children().filter(|n| n.is_element()) {
+        if child.tag_name().name() != "alternateEnclosure"
+            || !is_podcast_namespace(child.tag_name().namespace())
+        {
+            continue;
+        }
+
+        let Some(url) = child
+            .attribute("url")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+        else {
+            continue;
+        };
+
+        let mime_type = child
+            .attribute("type")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        let bytes = child
+            .attribute("length")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .and_then(|value| value.parse::<i64>().ok());
+        let rel = child
+            .attribute("rel")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        let title = child
+            .attribute("title")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+
+        enclosures.push(IngestAlternateEnclosure {
+            position: enclosures.len() as i64,
+            url,
+            mime_type,
+            bytes,
+            rel,
+            title,
+            extraction_path: "entity.podcast:alternateEnclosure".to_owned(),
+        });
+    }
+
+    enclosures
 }
 
 // --- Feed/Track data builders ---

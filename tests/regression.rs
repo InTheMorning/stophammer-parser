@@ -369,3 +369,54 @@ fn feed_track_and_live_item_links_are_extracted() {
         "live_item.@contentLink"
     );
 }
+
+#[test]
+fn alternate_enclosures_are_extracted_for_tracks_and_live_items() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Alt Enclosure Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:liveItem status="live">
+          <guid>live-guid-1</guid>
+          <title>Live Show</title>
+          <enclosure url="https://cdn.example.com/live.mp3" length="123" type="audio/mpeg" />
+          <podcast:alternateEnclosure url="https://cdn.example.com/live.opus" type="audio/ogg" length="456" rel="stream" title="Opus Stream" />
+        </podcast:liveItem>
+        <item>
+          <guid>track-guid-1</guid>
+          <title>Song</title>
+          <enclosure url="https://cdn.example.com/song.mp3" length="111" type="audio/mpeg" />
+          <podcast:alternateEnclosure url="https://cdn.example.com/song.flac" type="audio/flac" length="222" title="Lossless" />
+        </item>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.tracks[0].alternate_enclosures.len(), 1);
+    assert_eq!(
+        feed.tracks[0].alternate_enclosures[0].url,
+        "https://cdn.example.com/song.flac"
+    );
+    assert_eq!(
+        feed.tracks[0].alternate_enclosures[0].mime_type.as_deref(),
+        Some("audio/flac")
+    );
+    assert_eq!(feed.tracks[0].alternate_enclosures[0].bytes, Some(222));
+    assert_eq!(
+        feed.tracks[0].alternate_enclosures[0].title.as_deref(),
+        Some("Lossless")
+    );
+
+    assert_eq!(feed.live_items[0].alternate_enclosures.len(), 1);
+    assert_eq!(
+        feed.live_items[0].alternate_enclosures[0].url,
+        "https://cdn.example.com/live.opus"
+    );
+    assert_eq!(
+        feed.live_items[0].alternate_enclosures[0].rel.as_deref(),
+        Some("stream")
+    );
+}

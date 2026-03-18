@@ -66,6 +66,8 @@ pub struct IngestTrackData {
     pub enclosure_type: Option<String>,
     /// Enclosure size in bytes.
     pub enclosure_bytes: Option<i64>,
+    /// Alternate enclosure variants published for this item.
+    pub alternate_enclosures: Vec<IngestAlternateEnclosure>,
     /// Episode number.
     pub track_number: Option<i64>,
     /// Season number.
@@ -147,6 +149,27 @@ pub struct IngestLink {
     pub extraction_path: String,
 }
 
+/// An alternate media enclosure published for a track or live item.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestAlternateEnclosure {
+    /// Source order within the enclosing item/live item.
+    pub position: i64,
+    /// Alternate enclosure URL.
+    pub url: String,
+    /// MIME type when published.
+    pub mime_type: Option<String>,
+    /// Byte length when published.
+    pub bytes: Option<i64>,
+    /// Relation hint such as `stream` when published.
+    pub rel: Option<String>,
+    /// Human-readable title/label when published.
+    pub title: Option<String>,
+    /// Source extraction path within the feed.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub extraction_path: String,
+}
+
 /// Parsed `podcast:liveItem` data.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -173,6 +196,8 @@ pub struct IngestLiveItemData {
     pub enclosure_type: Option<String>,
     /// Enclosure size in bytes.
     pub enclosure_bytes: Option<i64>,
+    /// Alternate enclosure variants published for this live item.
+    pub alternate_enclosures: Vec<IngestAlternateEnclosure>,
     /// Episode number.
     pub track_number: Option<i64>,
     /// Season number.
