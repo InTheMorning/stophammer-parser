@@ -312,15 +312,18 @@ fn feed_track_and_live_item_links_are_extracted() {
         <title>Link Test</title>
         <podcast:guid>feed-guid</podcast:guid>
         <link>https://example.com/artist</link>
+        <atom:link rel="alternate" href="https://example.com/artist-home" type="text/html" />
         <atom:link rel="self" href="https://example.com/feed.xml" type="application/rss+xml" />
         <item>
           <guid>track-guid-1</guid>
           <title>Song</title>
           <link>https://example.com/song</link>
+          <atom:link rel="alternate" href="https://example.com/song-home" type="text/html" />
         </item>
         <podcast:liveItem status="live" contentLink="https://stream.example.com/live.mp3">
           <guid>live-guid-1</guid>
           <title>Live Show</title>
+          <atom:link rel="alternate" href="https://example.com/live-show" type="text/html" />
         </podcast:liveItem>
       </channel>
     </rss>"#;
@@ -328,16 +331,22 @@ fn feed_track_and_live_item_links_are_extracted() {
     let parser = profile::stophammer();
     let feed = parser.parse(xml).unwrap();
 
-    assert_eq!(feed.links.len(), 2);
+    assert_eq!(feed.links.len(), 3);
     assert_eq!(feed.links[0].link_type, "website");
     assert_eq!(feed.links[0].url, "https://example.com/artist");
-    assert_eq!(feed.links[1].link_type, "self_feed");
+    assert_eq!(feed.links[1].link_type, "website");
+    assert_eq!(feed.links[1].url, "https://example.com/artist-home");
+    assert_eq!(feed.links[2].link_type, "self_feed");
 
-    assert_eq!(feed.tracks[0].links.len(), 1);
+    assert_eq!(feed.tracks[0].links.len(), 2);
     assert_eq!(feed.tracks[0].links[0].link_type, "web_page");
     assert_eq!(feed.tracks[0].links[0].url, "https://example.com/song");
+    assert_eq!(feed.tracks[0].links[1].link_type, "web_page");
+    assert_eq!(feed.tracks[0].links[1].url, "https://example.com/song-home");
 
-    assert_eq!(feed.live_items[0].links.len(), 1);
-    assert_eq!(feed.live_items[0].links[0].link_type, "content_stream");
-    assert_eq!(feed.live_items[0].links[0].url, "https://stream.example.com/live.mp3");
+    assert_eq!(feed.live_items[0].links.len(), 2);
+    assert_eq!(feed.live_items[0].links[0].link_type, "web_page");
+    assert_eq!(feed.live_items[0].links[0].url, "https://example.com/live-show");
+    assert_eq!(feed.live_items[0].links[1].link_type, "content_stream");
+    assert_eq!(feed.live_items[0].links[1].url, "https://stream.example.com/live.mp3");
 }

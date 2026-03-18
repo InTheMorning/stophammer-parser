@@ -689,6 +689,27 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             {
                 Some("self_feed")
             }
+            (Some(ATOM_NS), "link", "feed")
+                if child
+                    .attribute("rel")
+                    .is_some_and(|rel| rel.eq_ignore_ascii_case("alternate")) =>
+            {
+                Some("website")
+            }
+            (Some(ATOM_NS), "link", "track")
+                if child
+                    .attribute("rel")
+                    .is_some_and(|rel| rel.eq_ignore_ascii_case("alternate")) =>
+            {
+                Some("web_page")
+            }
+            (Some(ATOM_NS), "link", "live_item")
+                if child
+                    .attribute("rel")
+                    .is_some_and(|rel| rel.eq_ignore_ascii_case("alternate")) =>
+            {
+                Some("web_page")
+            }
             _ => None,
         };
 
