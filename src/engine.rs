@@ -12,8 +12,8 @@ use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
     IngestAlternateEnclosure, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
-    IngestPaymentRoute, IngestPerson, IngestRemoteFeedRef, IngestTrackData,
-    IngestValueTimeSplit, RouteType,
+    IngestPaymentRoute, IngestPerson, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit,
+    RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -685,12 +685,18 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
     let mut links = Vec::new();
 
     for child in node.children().filter(roxmltree::Node::is_element) {
-        let link_meta = match (child.tag_name().namespace(), child.tag_name().name(), entity_type) {
+        let link_meta = match (
+            child.tag_name().namespace(),
+            child.tag_name().name(),
+            entity_type,
+        ) {
             (None, "link", "feed") => Some(("website", "feed.link")),
             (None, "link", "track") => Some(("web_page", "entity.link")),
             (None, "link", "live_item") => Some(("web_page", "entity.link")),
             (Some(ATOM_NS), "link", "feed")
-                if child.attribute("rel").is_some_and(|rel| rel.eq_ignore_ascii_case("self")) =>
+                if child
+                    .attribute("rel")
+                    .is_some_and(|rel| rel.eq_ignore_ascii_case("self")) =>
             {
                 Some(("self_feed", "feed.atom:link[@rel='self']"))
             }

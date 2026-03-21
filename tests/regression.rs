@@ -251,7 +251,10 @@ fn podcast_persons_are_extracted_for_feed_track_and_live_item() {
     assert_eq!(feed.persons[0].name, "Alice");
     assert_eq!(feed.persons[0].role.as_deref(), Some("bandleader"));
     assert_eq!(feed.persons[0].group_name.as_deref(), Some("music"));
-    assert_eq!(feed.persons[0].href.as_deref(), Some("https://example.com/artist"));
+    assert_eq!(
+        feed.persons[0].href.as_deref(),
+        Some("https://example.com/artist")
+    );
     assert_eq!(
         feed.persons[0].img.as_deref(),
         Some("https://example.com/artist.jpg")
@@ -263,7 +266,10 @@ fn podcast_persons_are_extracted_for_feed_track_and_live_item() {
 
     assert_eq!(feed.live_items[0].persons.len(), 1);
     assert_eq!(feed.live_items[0].persons[0].name, "MC");
-    assert_eq!(feed.live_items[0].persons[0].group_name.as_deref(), Some("cast"));
+    assert_eq!(
+        feed.live_items[0].persons[0].group_name.as_deref(),
+        Some("cast")
+    );
 }
 
 #[test]
@@ -357,13 +363,19 @@ fn feed_track_and_live_item_links_are_extracted() {
 
     assert_eq!(feed.live_items[0].links.len(), 2);
     assert_eq!(feed.live_items[0].links[0].link_type, "web_page");
-    assert_eq!(feed.live_items[0].links[0].url, "https://example.com/live-show");
+    assert_eq!(
+        feed.live_items[0].links[0].url,
+        "https://example.com/live-show"
+    );
     assert_eq!(
         feed.live_items[0].links[0].extraction_path,
         "entity.atom:link[@rel='alternate']"
     );
     assert_eq!(feed.live_items[0].links[1].link_type, "content_stream");
-    assert_eq!(feed.live_items[0].links[1].url, "https://stream.example.com/live.mp3");
+    assert_eq!(
+        feed.live_items[0].links[1].url,
+        "https://stream.example.com/live.mp3"
+    );
     assert_eq!(
         feed.live_items[0].links[1].extraction_path,
         "live_item.@contentLink"
