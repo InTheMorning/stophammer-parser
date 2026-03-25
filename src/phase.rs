@@ -1,7 +1,9 @@
 //! Podcast namespace phase definitions.
 //!
 //! Phases map to the podcast namespace specification phases.
-//! The parser builder selects which phases to enable.
+//! The parser builder selects which normalized extractors to enable.
+//! Generic `podcast_namespace` preservation is always on so callers retain the
+//! complete Podcast Namespace 1.0 XML surface regardless of phase filtering.
 
 /// A podcast namespace specification phase.
 ///

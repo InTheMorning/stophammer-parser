@@ -1,7 +1,6 @@
 //! Regression tests for Sprint 5 bugs fixed across the TS crawlers.
 
-use stophammer_parser::RouteType;
-use stophammer_parser::profile;
+use stophammer_parser::{RouteType, extract_podcast_namespace, profile};
 
 /// Sprint 5 Bug 1: `route_type` defaults to "node", not "lightning".
 /// The old TS parsers defaulted unknown types to "lightning" which is
@@ -159,6 +158,125 @@ fn legacy_podcast_namespace_uri_is_accepted() {
     assert_eq!(feed.feed_payment_routes.len(), 1);
     assert_eq!(feed.tracks[0].track_number, Some(1));
     assert_eq!(feed.tracks[0].season, Some(2));
+    assert!(
+        feed.podcast_namespace
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.tags.iter().any(|tag| tag.tag == "podcast:value")),
+        "legacy namespace URI should also populate the generic namespace snapshot"
+    );
+}
+
+#[test]
+fn podcast_namespace_snapshot_is_prefix_agnostic_and_preserves_nested_tags() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:pi="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Namespace Test</title>
+        <pi:guid>feed-guid</pi:guid>
+        <pi:medium>music</pi:medium>
+        <pi:locked owner="owner@example.com">true</pi:locked>
+        <pi:funding url="https://example.com/support">Support the show</pi:funding>
+        <pi:publisher>Example Label</pi:publisher>
+        <pi:updateFrequency complete="false" rrule="FREQ=WEEKLY">Weekly</pi:updateFrequency>
+        <pi:podroll>
+          <pi:remoteItem feedGuid="podroll-feed" feedUrl="https://example.com/podroll.xml" />
+        </pi:podroll>
+        <pi:liveItem status="live">
+          <guid>live-guid</guid>
+          <title>Live Set</title>
+          <pi:socialInteract uri="https://example.com/social" protocol="activitypub" accountId="@artist@example.com" />
+        </pi:liveItem>
+        <item>
+          <guid>track-guid</guid>
+          <title>Track</title>
+          <pi:transcript url="https://example.com/transcript.vtt" type="text/vtt" language="en" />
+          <pi:chapters url="https://example.com/chapters.json" type="application/json+chapters" />
+          <pi:soundbite startTime="12" duration="34" />
+          <pi:location osm="relation:123">Montreal</pi:location>
+          <pi:license url="https://example.com/license">CC-BY-4.0</pi:license>
+          <pi:source uri="https://example.com/source.xml">Upstream feed</pi:source>
+          <pi:integrity type="sha256" value="abc123" />
+          <pi:chat server="irc.example.com" protocol="irc" />
+          <pi:value type="lightning" method="keysend">
+            <pi:valueRecipient name="Artist" address="pubkey" split="100" />
+            <pi:valueTimeSplit startTime="0" split="100">
+              <pi:remoteItem feedGuid="remote-feed" itemGuid="remote-item" />
+            </pi:valueTimeSplit>
+          </pi:value>
+        </item>
+      </channel>
+    </rss>"#;
+
+    let feed = profile::stophammer().parse(xml).expect("feed parses");
+    let snapshot = feed.podcast_namespace.expect("namespace snapshot");
+
+    assert!(
+        snapshot.tags.iter().all(|tag| tag.tag.starts_with("podcast:")),
+        "snapshot tags should be canonicalized to the podcast: prefix"
+    );
+    assert!(
+        snapshot.tags.iter().any(|tag| tag.tag == "podcast:locked"),
+        "expected channel-level locked tag"
+    );
+    assert!(
+        snapshot.tags.iter().any(|tag| tag.tag == "podcast:publisher"),
+        "expected channel-level publisher tag"
+    );
+    assert!(
+        snapshot.tags.iter().any(|tag| {
+            tag.tag == "podcast:socialInteract"
+                && tag.entity_scope == "live_item"
+                && tag.entity_guid.as_deref() == Some("live-guid")
+        }),
+        "expected live-item scoped socialInteract tag"
+    );
+    assert!(
+        snapshot.tags.iter().any(|tag| {
+            tag.tag == "podcast:location"
+                && tag.entity_scope == "item"
+                && tag.entity_guid.as_deref() == Some("track-guid")
+                && tag.text.as_deref() == Some("Montreal")
+        }),
+        "expected item-scoped location tag with text preserved"
+    );
+    assert!(
+        snapshot.tags.iter().any(|tag| {
+            tag.tag == "podcast:valueRecipient"
+                && tag.path == "rss.channel.item.podcast:value.podcast:valueRecipient"
+                && tag.attributes.get("address").map(String::as_str) == Some("pubkey")
+        }),
+        "expected nested valueRecipient path and attributes"
+    );
+    assert!(
+        snapshot.tags.iter().any(|tag| {
+            tag.tag == "podcast:remoteItem"
+                && tag.path == "rss.channel.item.podcast:value.podcast:valueTimeSplit.podcast:remoteItem"
+                && tag.attributes.get("itemGuid").map(String::as_str) == Some("remote-item")
+        }),
+        "expected nested valueTimeSplit remoteItem to be preserved"
+    );
+}
+
+#[test]
+fn podcast_namespace_can_be_extracted_even_when_full_feed_parse_fails() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <podcast:block>yes</podcast:block>
+      </channel>
+    </rss>"#;
+
+    assert!(
+        profile::stophammer().parse(xml).is_err(),
+        "full parse should still reject feeds missing required fields"
+    );
+
+    let snapshot = extract_podcast_namespace(xml)
+        .expect("namespace-only extraction should succeed")
+        .expect("snapshot");
+    assert_eq!(snapshot.tags.len(), 1);
+    assert_eq!(snapshot.tags[0].tag, "podcast:block");
+    assert_eq!(snapshot.tags[0].text.as_deref(), Some("yes"));
 }
 
 #[test]

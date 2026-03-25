@@ -3,7 +3,7 @@
 //! The engine applies declarative rules to an XML DOM, extracting
 //! structured feed and track data.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::date::parse_date;
 use crate::error::{ErrorKind, ParseError};
@@ -12,7 +12,8 @@ use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
     IngestAlternateEnclosure, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
-    IngestPaymentRoute, IngestPerson, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit,
+    IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot,
+    IngestPodcastNamespaceTag, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit,
     RouteType,
 };
 
@@ -127,6 +128,7 @@ impl FeedParser {
             Vec::new()
         };
         let links = extract_links(&channel, "feed");
+        let podcast_namespace = extract_podcast_namespace_from_node(&channel);
         let live_items = self.parse_live_items(&channel);
 
         // Validate required fields
@@ -156,6 +158,7 @@ impl FeedParser {
             persons,
             entity_ids,
             links,
+            podcast_namespace,
             feed_payment_routes,
             live_items,
             tracks,
@@ -334,6 +337,26 @@ impl FeedParser {
 
         track
     }
+}
+
+/// Extracts a full Podcast Namespace 1.0 snapshot from an XML document.
+///
+/// This preserves every Podcast Namespace element, including tags that are not
+/// yet normalized into dedicated ingest fields.
+///
+/// # Errors
+///
+/// Returns [`ParseError`] when the XML cannot be parsed or no `<channel>`
+/// element is present.
+pub fn extract_podcast_namespace(
+    xml: &str,
+) -> Result<Option<IngestPodcastNamespaceSnapshot>, ParseError> {
+    let doc = roxmltree::Document::parse(xml)?;
+    let root = doc.root_element();
+    let channel = find_channel(&root).ok_or(ParseError {
+        kind: ErrorKind::NoChannel,
+    })?;
+    Ok(extract_podcast_namespace_from_node(&channel))
 }
 
 /// Builder for configuring a [`FeedParser`].
@@ -625,7 +648,7 @@ fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedR
         };
 
         refs.push(IngestRemoteFeedRef {
-            position: position as i64,
+            position: usize_to_i64(position),
             medium: remote.attribute("medium").map(str::to_owned),
             remote_feed_guid: remote_feed_guid.to_owned(),
             remote_feed_url: remote.attribute("feedUrl").map(str::to_owned),
@@ -646,7 +669,7 @@ fn extract_persons(node: &roxmltree::Node) -> Vec<IngestPerson> {
         .filter_map(|(position, child)| {
             let name = child_text(&child)?;
             Some(IngestPerson {
-                position: position as i64,
+                position: usize_to_i64(position),
                 name,
                 role: child.attribute("role").map(str::to_owned),
                 group_name: child.attribute("group").map(str::to_owned),
@@ -673,7 +696,7 @@ fn extract_entity_ids(node: &roxmltree::Node) -> Vec<IngestEntityId> {
             };
             let value = child_text(&child)?;
             Some(IngestEntityId {
-                position: position as i64,
+                position: usize_to_i64(position),
                 scheme: scheme.to_owned(),
                 value,
             })
@@ -691,8 +714,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             entity_type,
         ) {
             (None, "link", "feed") => Some(("website", "feed.link")),
-            (None, "link", "track") => Some(("web_page", "entity.link")),
-            (None, "link", "live_item") => Some(("web_page", "entity.link")),
+            (None, "link", "track" | "live_item") => Some(("web_page", "entity.link")),
             (Some(ATOM_NS), "link", "feed")
                 if child
                     .attribute("rel")
@@ -743,7 +765,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
         let Some(url) = url else { continue };
 
         links.push(IngestLink {
-            position: links.len() as i64,
+            position: usize_to_i64(links.len()),
             link_type: link_type.to_owned(),
             url,
             extraction_path: extraction_path.to_owned(),
@@ -755,7 +777,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
         && !content_link.is_empty()
     {
         links.push(IngestLink {
-            position: links.len() as i64,
+            position: usize_to_i64(links.len()),
             link_type: "content_stream".to_owned(),
             url: content_link.to_owned(),
             extraction_path: "live_item.@contentLink".to_owned(),
@@ -768,7 +790,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
 fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEnclosure> {
     let mut enclosures = Vec::new();
 
-    for child in node.children().filter(|n| n.is_element()) {
+    for child in node.children().filter(roxmltree::Node::is_element) {
         if child.tag_name().name() != "alternateEnclosure"
             || !is_podcast_namespace(child.tag_name().namespace())
         {
@@ -806,7 +828,7 @@ fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEn
             .map(str::to_owned);
 
         enclosures.push(IngestAlternateEnclosure {
-            position: enclosures.len() as i64,
+            position: usize_to_i64(enclosures.len()),
             url,
             mime_type,
             bytes,
@@ -817,6 +839,100 @@ fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEn
     }
 
     enclosures
+}
+
+fn extract_podcast_namespace_from_node(
+    channel: &roxmltree::Node,
+) -> Option<IngestPodcastNamespaceSnapshot> {
+    let tags = channel
+        .descendants()
+        .filter(|node| node.is_element() && is_podcast_namespace(node.tag_name().namespace()))
+        .enumerate()
+        .map(|(position, node)| IngestPodcastNamespaceTag {
+            position: usize_to_i64(position),
+            entity_scope: podcast_entity_scope(&node).to_owned(),
+            entity_guid: podcast_entity_guid(&node),
+            path: podcast_node_path(&node),
+            tag: format!("podcast:{}", node.tag_name().name()),
+            attributes: podcast_attributes(&node),
+            text: normalized_node_text(&node),
+        })
+        .collect::<Vec<_>>();
+
+    (!tags.is_empty()).then_some(IngestPodcastNamespaceSnapshot { tags })
+}
+
+fn podcast_entity_scope(node: &roxmltree::Node) -> &'static str {
+    if node
+        .ancestors()
+        .skip(1)
+        .any(|ancestor| ancestor.is_element() && ancestor.tag_name().name() == "item")
+    {
+        "item"
+    } else if node.ancestors().skip(1).any(|ancestor| {
+        ancestor.is_element()
+            && ancestor.tag_name().name() == "liveItem"
+            && is_podcast_namespace(ancestor.tag_name().namespace())
+    }) {
+        "live_item"
+    } else {
+        "channel"
+    }
+}
+
+fn podcast_entity_guid(node: &roxmltree::Node) -> Option<String> {
+    let live_item_ancestor = node.ancestors().skip(1).find(|ancestor| {
+        ancestor.is_element()
+            && ancestor.tag_name().name() == "liveItem"
+            && is_podcast_namespace(ancestor.tag_name().namespace())
+    });
+    if let Some(live_item) = live_item_ancestor {
+        return find_child(&live_item, "guid", None).and_then(|guid| child_text(&guid));
+    }
+
+    let item_ancestor = node
+        .ancestors()
+        .skip(1)
+        .find(|ancestor| ancestor.is_element() && ancestor.tag_name().name() == "item")?;
+
+    find_child(&item_ancestor, "guid", None).and_then(|guid| child_text(&guid))
+}
+
+fn podcast_node_path(node: &roxmltree::Node) -> String {
+    node.ancestors()
+        .filter(roxmltree::Node::is_element)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .map(|ancestor| {
+            if is_podcast_namespace(ancestor.tag_name().namespace()) {
+                format!("podcast:{}", ancestor.tag_name().name())
+            } else {
+                ancestor.tag_name().name().to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+fn podcast_attributes(node: &roxmltree::Node) -> HashMap<String, String> {
+    node.attributes()
+        .map(|attribute| (attribute.name().to_owned(), attribute.value().to_owned()))
+        .collect()
+}
+
+fn normalized_node_text(node: &roxmltree::Node) -> Option<String> {
+    let text: String = node
+        .children()
+        .filter(roxmltree::Node::is_text)
+        .filter_map(|child| child.text())
+        .collect();
+    let text = text.trim();
+    (!text.is_empty()).then(|| text.to_owned())
+}
+
+fn usize_to_i64(value: usize) -> i64 {
+    i64::try_from(value).unwrap_or(i64::MAX)
 }
 
 // --- Feed/Track data builders ---

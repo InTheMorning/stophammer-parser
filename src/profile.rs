@@ -101,6 +101,10 @@ impl crate::engine::ParserBuilder {
 }
 
 /// Returns all feed-level extraction rules.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the feed rule table is intentionally declared inline for auditability"
+)]
 fn feed_rules() -> Vec<Rule> {
     vec![
         // Phase1: podcast:guid
@@ -252,6 +256,10 @@ fn feed_rules() -> Vec<Rule> {
 }
 
 /// Returns all track-level extraction rules.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the track rule table is intentionally declared inline for auditability"
+)]
 fn track_rules() -> Vec<Rule> {
     vec![
         // RSS2: guid

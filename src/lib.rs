@@ -3,7 +3,10 @@
 //! `stophammer-parser` provides a rule-based parser that extracts structured
 //! feed and track data from podcast RSS XML. Rules declare *where* to find
 //! a value in the DOM, *how* to transform it, and *which* output field to
-//! populate.
+//! populate. In addition to those normalized fields, the parser preserves the
+//! full Podcast Namespace 1.0 tag surface in `IngestFeedData::podcast_namespace`
+//! so callers can retain spec-defined elements that do not yet have dedicated
+//! typed fields.
 //!
 //! # Quick start
 //!
@@ -40,9 +43,10 @@ pub mod rule;
 pub mod transform;
 pub mod types;
 
-pub use engine::FeedParser;
+pub use engine::{FeedParser, extract_podcast_namespace};
 pub use error::ParseError;
 pub use types::{
     IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute,
-    IngestPerson, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag, IngestRemoteFeedRef,
+    IngestTrackData, IngestValueTimeSplit, RouteType,
 };
