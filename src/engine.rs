@@ -12,9 +12,8 @@ use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
     IngestAlternateEnclosure, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
-    IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot,
-    IngestPodcastNamespaceTag, IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit,
-    RouteType,
+    IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag,
+    IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.

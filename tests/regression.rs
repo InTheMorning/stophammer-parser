@@ -211,7 +211,10 @@ fn podcast_namespace_snapshot_is_prefix_agnostic_and_preserves_nested_tags() {
     let snapshot = feed.podcast_namespace.expect("namespace snapshot");
 
     assert!(
-        snapshot.tags.iter().all(|tag| tag.tag.starts_with("podcast:")),
+        snapshot
+            .tags
+            .iter()
+            .all(|tag| tag.tag.starts_with("podcast:")),
         "snapshot tags should be canonicalized to the podcast: prefix"
     );
     assert!(
@@ -219,7 +222,10 @@ fn podcast_namespace_snapshot_is_prefix_agnostic_and_preserves_nested_tags() {
         "expected channel-level locked tag"
     );
     assert!(
-        snapshot.tags.iter().any(|tag| tag.tag == "podcast:publisher"),
+        snapshot
+            .tags
+            .iter()
+            .any(|tag| tag.tag == "podcast:publisher"),
         "expected channel-level publisher tag"
     );
     assert!(
@@ -250,7 +256,8 @@ fn podcast_namespace_snapshot_is_prefix_agnostic_and_preserves_nested_tags() {
     assert!(
         snapshot.tags.iter().any(|tag| {
             tag.tag == "podcast:remoteItem"
-                && tag.path == "rss.channel.item.podcast:value.podcast:valueTimeSplit.podcast:remoteItem"
+                && tag.path
+                    == "rss.channel.item.podcast:value.podcast:valueTimeSplit.podcast:remoteItem"
                 && tag.attributes.get("itemGuid").map(String::as_str) == Some("remote-item")
         }),
         "expected nested valueTimeSplit remoteItem to be preserved"
