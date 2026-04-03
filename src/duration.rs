@@ -75,6 +75,11 @@ mod tests {
     }
 
     #[test]
+    fn m_ss() {
+        assert_eq!(parse_duration("5:00"), Some(300));
+    }
+
+    #[test]
     fn bare_seconds() {
         assert_eq!(parse_duration("300"), Some(300));
     }
