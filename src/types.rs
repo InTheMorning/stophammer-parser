@@ -71,6 +71,10 @@ pub struct IngestTrackData {
     pub pub_date: Option<i64>,
     /// Duration in seconds.
     pub duration_secs: Option<i64>,
+    /// Track-level artwork URL from `itunes:image href`.
+    pub image_url: Option<String>,
+    /// Language code override for this track.
+    pub language: Option<String>,
     /// Enclosure media URL.
     pub enclosure_url: Option<String>,
     /// Enclosure MIME type.
@@ -201,6 +205,10 @@ pub struct IngestLiveItemData {
     pub pub_date: Option<i64>,
     /// Duration in seconds.
     pub duration_secs: Option<i64>,
+    /// Live item artwork URL from `itunes:image href`.
+    pub image_url: Option<String>,
+    /// Language code override for this live item.
+    pub language: Option<String>,
     /// Enclosure media URL.
     pub enclosure_url: Option<String>,
     /// Enclosure MIME type.

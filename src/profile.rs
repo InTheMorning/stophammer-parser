@@ -393,6 +393,16 @@ fn track_rules() -> Vec<Rule> {
             transform: Transform::StripHtml,
             target: Target::Track(TrackField::Description),
         },
+        // RSS2: item-level language
+        Rule {
+            phase: Phase::Rss2Core,
+            source: Source::ChildText {
+                tag: "language",
+                ns: None,
+            },
+            transform: Transform::None,
+            target: Target::Track(TrackField::Language),
+        },
         // iTunes: summary as description fallback
         Rule {
             phase: Phase::Itunes,
@@ -402,6 +412,17 @@ fn track_rules() -> Vec<Rule> {
             },
             transform: Transform::StripHtml,
             target: Target::Track(TrackField::Description),
+        },
+        // iTunes: item-level artwork (overrides feed artwork for this track)
+        Rule {
+            phase: Phase::Itunes,
+            source: Source::Attr {
+                tag: "image",
+                ns: Some(ITUNES_NS),
+                attr: "href",
+            },
+            transform: Transform::None,
+            target: Target::Track(TrackField::ImageUrl),
         },
         // iTunes: author
         Rule {

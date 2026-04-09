@@ -128,7 +128,8 @@ impl FeedParser {
         };
         let links = extract_links(&channel, "feed");
         let podcast_namespace = extract_podcast_namespace_from_node(&channel);
-        let live_items = self.parse_live_items(&channel);
+        let tracks = self.parse_items(&channel, &feed);
+        let live_items = self.parse_live_items(&channel, &feed);
 
         // Validate required fields
         let title = feed.title.ok_or(ParseError {
@@ -137,9 +138,6 @@ impl FeedParser {
         let feed_guid = feed.feed_guid.ok_or(ParseError {
             kind: ErrorKind::NoGuid,
         })?;
-
-        // Parse items
-        let tracks = self.parse_items(&channel);
 
         Ok(IngestFeedData {
             feed_guid,
@@ -165,11 +163,15 @@ impl FeedParser {
     }
 
     /// Parses all `<item>` elements within the channel.
-    fn parse_items(&self, channel: &roxmltree::Node) -> Vec<IngestTrackData> {
+    fn parse_items(
+        &self,
+        channel: &roxmltree::Node,
+        feed: &FeedDataBuilder,
+    ) -> Vec<IngestTrackData> {
         let mut tracks = Vec::new();
 
         for item in channel.children().filter(|n| n.has_tag_name("item")) {
-            if let Some(track) = self.parse_item(&item) {
+            if let Some(track) = self.parse_item(&item, feed) {
                 tracks.push(track);
             }
         }
@@ -178,7 +180,11 @@ impl FeedParser {
     }
 
     /// Parses all `<podcast:liveItem>` elements within the channel.
-    fn parse_live_items(&self, channel: &roxmltree::Node) -> Vec<IngestLiveItemData> {
+    fn parse_live_items(
+        &self,
+        channel: &roxmltree::Node,
+        feed: &FeedDataBuilder,
+    ) -> Vec<IngestLiveItemData> {
         let mut live_items = Vec::new();
 
         for live_item in channel.children().filter(|n| {
@@ -186,7 +192,7 @@ impl FeedParser {
                 && n.tag_name().name() == "liveItem"
                 && is_podcast_namespace(n.tag_name().namespace())
         }) {
-            if let Some(parsed) = self.parse_live_item(&live_item) {
+            if let Some(parsed) = self.parse_live_item(&live_item, feed) {
                 live_items.push(parsed);
             }
         }
@@ -195,8 +201,12 @@ impl FeedParser {
     }
 
     /// Parses a single `<item>` element into track data.
-    fn parse_item(&self, item: &roxmltree::Node) -> Option<IngestTrackData> {
-        let track = self.extract_track_fields(item);
+    fn parse_item(
+        &self,
+        item: &roxmltree::Node,
+        feed: &FeedDataBuilder,
+    ) -> Option<IngestTrackData> {
+        let track = self.extract_track_fields(item, feed);
 
         // Track guid and title are required
         let track_guid = track.track_guid?;
@@ -233,6 +243,8 @@ impl FeedParser {
             title,
             pub_date: track.pub_date,
             duration_secs: track.duration_secs,
+            image_url: track.image_url,
+            language: track.language,
             enclosure_url: track.enclosure_url,
             enclosure_type: track.enclosure_type,
             enclosure_bytes: track.enclosure_bytes,
@@ -251,8 +263,12 @@ impl FeedParser {
     }
 
     /// Parses a single `<podcast:liveItem>` element.
-    fn parse_live_item(&self, live_item: &roxmltree::Node) -> Option<IngestLiveItemData> {
-        let track = self.extract_track_fields(live_item);
+    fn parse_live_item(
+        &self,
+        live_item: &roxmltree::Node,
+        feed: &FeedDataBuilder,
+    ) -> Option<IngestLiveItemData> {
+        let track = self.extract_track_fields(live_item, feed);
         let live_item_guid = track.track_guid?;
         let title = track.title?;
         let status = live_item.attribute("status")?.trim().to_ascii_lowercase();
@@ -298,6 +314,8 @@ impl FeedParser {
             content_link,
             pub_date: track.pub_date,
             duration_secs: track.duration_secs,
+            image_url: track.image_url,
+            language: track.language,
             enclosure_url: track.enclosure_url,
             enclosure_type: track.enclosure_type,
             enclosure_bytes: track.enclosure_bytes,
@@ -315,7 +333,11 @@ impl FeedParser {
         })
     }
 
-    fn extract_track_fields(&self, node: &roxmltree::Node) -> TrackDataBuilder {
+    fn extract_track_fields(
+        &self,
+        node: &roxmltree::Node,
+        feed: &FeedDataBuilder,
+    ) -> TrackDataBuilder {
         let mut track = TrackDataBuilder::default();
 
         for rule in &self.track_rules {
@@ -332,6 +354,14 @@ impl FeedParser {
                     track.set(field, result);
                 }
             }
+        }
+
+        if track.language.is_none() {
+            track.language = feed.language.clone();
+        }
+        if !track.explicit_set && feed.explicit_set {
+            track.explicit = feed.explicit;
+            track.explicit_set = true;
         }
 
         track
@@ -996,6 +1026,8 @@ struct TrackDataBuilder {
     title: Option<String>,
     pub_date: Option<i64>,
     duration_secs: Option<i64>,
+    image_url: Option<String>,
+    language: Option<String>,
     enclosure_url: Option<String>,
     enclosure_type: Option<String>,
     enclosure_bytes: Option<i64>,
@@ -1014,6 +1046,8 @@ impl TrackDataBuilder {
             TrackField::Title => self.title.is_some(),
             TrackField::PubDate => self.pub_date.is_some(),
             TrackField::DurationSecs => self.duration_secs.is_some(),
+            TrackField::ImageUrl => self.image_url.is_some(),
+            TrackField::Language => self.language.is_some(),
             TrackField::EnclosureUrl => self.enclosure_url.is_some(),
             TrackField::EnclosureType => self.enclosure_type.is_some(),
             TrackField::EnclosureBytes => self.enclosure_bytes.is_some(),
@@ -1031,6 +1065,8 @@ impl TrackDataBuilder {
             (TrackField::Title, TransformResult::Text(v)) => self.title = Some(v),
             (TrackField::PubDate, TransformResult::Int(v)) => self.pub_date = Some(v),
             (TrackField::DurationSecs, TransformResult::Int(v)) => self.duration_secs = Some(v),
+            (TrackField::ImageUrl, TransformResult::Text(v)) => self.image_url = Some(v),
+            (TrackField::Language, TransformResult::Text(v)) => self.language = Some(v),
             (TrackField::EnclosureUrl, TransformResult::Text(v)) => self.enclosure_url = Some(v),
             (TrackField::EnclosureType, TransformResult::Text(v)) => self.enclosure_type = Some(v),
             (TrackField::EnclosureBytes, TransformResult::Int(v)) => self.enclosure_bytes = Some(v),

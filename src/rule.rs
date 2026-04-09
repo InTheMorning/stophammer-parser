@@ -114,6 +114,10 @@ pub enum TrackField {
     PubDate,
     /// `duration_secs`
     DurationSecs,
+    /// `image_url`
+    ImageUrl,
+    /// `language`
+    Language,
     /// `enclosure_url`
     EnclosureUrl,
     /// `enclosure_type`

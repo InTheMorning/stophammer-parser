@@ -19,12 +19,14 @@
     <item>
       <guid>track-1</guid>
       <title>Episode One</title>
+      <language>fr</language>
       <pubDate>Sun, 31 Dec 2023 12:00:00 +0000</pubDate>
       <itunes:duration>1:23:45</itunes:duration>
       <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="12345678"/>
       <itunes:episode>1</itunes:episode>
       <itunes:season>2</itunes:season>
       <itunes:explicit>yes</itunes:explicit>
+      <itunes:image href="https://example.com/ep1-art.jpg"/>
       <description><![CDATA[<p>Episode one description</p>]]></description>
       <itunes:author>Episode Author</itunes:author>
     </item>

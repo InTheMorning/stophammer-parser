@@ -63,6 +63,11 @@ fn parses_all_track_fields() {
         Some("Episode one description")
     );
     assert_eq!(track.author_name.as_deref(), Some("Episode Author"));
+    assert_eq!(
+        track.image_url.as_deref(),
+        Some("https://example.com/ep1-art.jpg")
+    );
+    assert_eq!(track.language.as_deref(), Some("fr"));
 }
 
 #[test]
@@ -75,10 +80,65 @@ fn minimal_track_has_defaults() {
     assert_eq!(track.title, "Episode Two");
     assert_eq!(track.pub_date, None);
     assert_eq!(track.duration_secs, None);
+    assert_eq!(track.language.as_deref(), Some("en"));
     assert_eq!(track.enclosure_url, None);
     assert!(!track.explicit);
     assert!(track.payment_routes.is_empty());
     assert!(track.value_time_splits.is_empty());
+}
+
+#[test]
+fn item_fields_override_and_fall_back_to_feed_values() {
+    let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0"
+         xmlns:podcast="https://podcastindex.org/namespace/1.0"
+         xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+      <channel>
+        <title>Fallback Test</title>
+        <podcast:guid>feed-fallback-guid</podcast:guid>
+        <language>en</language>
+        <itunes:explicit>yes</itunes:explicit>
+        <item>
+          <guid>track-override</guid>
+          <title>Track Override</title>
+          <language>de</language>
+          <itunes:explicit>no</itunes:explicit>
+        </item>
+        <podcast:liveItem status="live">
+          <guid>live-override</guid>
+          <title>Live Override</title>
+          <language>es</language>
+          <itunes:explicit>false</itunes:explicit>
+        </podcast:liveItem>
+        <item>
+          <guid>track-fallback</guid>
+          <title>Track Fallback</title>
+        </item>
+        <podcast:liveItem status="live">
+          <guid>live-fallback</guid>
+          <title>Live Fallback</title>
+        </podcast:liveItem>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    let override_track = &feed.tracks[0];
+    assert_eq!(override_track.language.as_deref(), Some("de"));
+    assert!(!override_track.explicit);
+
+    let fallback_track = &feed.tracks[1];
+    assert_eq!(fallback_track.language.as_deref(), Some("en"));
+    assert!(fallback_track.explicit);
+
+    let override_live = &feed.live_items[0];
+    assert_eq!(override_live.language.as_deref(), Some("es"));
+    assert!(!override_live.explicit);
+
+    let fallback_live = &feed.live_items[1];
+    assert_eq!(fallback_live.language.as_deref(), Some("en"));
+    assert!(fallback_live.explicit);
 }
 
 #[test]
