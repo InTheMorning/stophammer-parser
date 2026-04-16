@@ -13,7 +13,7 @@ use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
     IngestAlternateEnclosure, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
     IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag,
-    IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestRemoteFeedRef, IngestTrackData, IngestTranscript, IngestValueTimeSplit, RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -230,6 +230,7 @@ impl FeedParser {
         };
         let links = extract_links(item, "track");
         let alternate_enclosures = extract_alternate_enclosures(item);
+        let transcripts = extract_transcripts(item);
 
         // Extract value time splits (Phase3)
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
@@ -259,6 +260,7 @@ impl FeedParser {
             links,
             payment_routes,
             value_time_splits,
+            transcripts,
         })
     }
 
@@ -293,6 +295,7 @@ impl FeedParser {
         };
         let links = extract_links(live_item, "live_item");
         let alternate_enclosures = extract_alternate_enclosures(live_item);
+        let transcripts = extract_transcripts(live_item);
 
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
             extract_value_time_splits(live_item)
@@ -330,6 +333,7 @@ impl FeedParser {
             links,
             payment_routes,
             value_time_splits,
+            transcripts,
         })
     }
 
@@ -868,6 +872,53 @@ fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEn
     }
 
     enclosures
+}
+
+fn extract_transcripts(node: &roxmltree::Node) -> Vec<IngestTranscript> {
+    let mut transcripts = Vec::new();
+
+    for child in node.children().filter(roxmltree::Node::is_element) {
+        if child.tag_name().name() != "transcript"
+            || !is_podcast_namespace(child.tag_name().namespace())
+        {
+            continue;
+        }
+
+        let Some(url) = child
+            .attribute("url")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+        else {
+            continue;
+        };
+
+        let mime_type = child
+            .attribute("type")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        let language = child
+            .attribute("language")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        let rel = child
+            .attribute("rel")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+
+        transcripts.push(IngestTranscript {
+            position: usize_to_i64(transcripts.len()),
+            url,
+            mime_type,
+            language,
+            rel,
+        });
+    }
+
+    transcripts
 }
 
 fn extract_podcast_namespace_from_node(

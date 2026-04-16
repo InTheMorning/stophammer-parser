@@ -103,6 +103,8 @@ pub struct IngestTrackData {
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits for this track.
     pub value_time_splits: Vec<IngestValueTimeSplit>,
+    /// Transcript files published for this track via `podcast:transcript`.
+    pub transcripts: Vec<IngestTranscript>,
 }
 
 /// A channel-level `podcast:remoteItem` reference.
@@ -185,6 +187,22 @@ pub struct IngestAlternateEnclosure {
     pub extraction_path: String,
 }
 
+/// A transcript file published for a track or live item via `podcast:transcript`.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestTranscript {
+    /// Source order within the enclosing item/live item.
+    pub position: i64,
+    /// Transcript URL.
+    pub url: String,
+    /// MIME type when published (e.g. `text/vtt`, `application/srt`).
+    pub mime_type: Option<String>,
+    /// Language code when published.
+    pub language: Option<String>,
+    /// Relation hint when published (e.g. `captions`).
+    pub rel: Option<String>,
+}
+
 /// Parsed `podcast:liveItem` data.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -237,6 +255,8 @@ pub struct IngestLiveItemData {
     pub payment_routes: Vec<IngestPaymentRoute>,
     /// Value time splits attached to the live item.
     pub value_time_splits: Vec<IngestValueTimeSplit>,
+    /// Transcript files published for this live item via `podcast:transcript`.
+    pub transcripts: Vec<IngestTranscript>,
 }
 
 /// Full Podcast Namespace 1.0 snapshot for a parsed feed.
