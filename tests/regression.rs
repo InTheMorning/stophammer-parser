@@ -474,6 +474,66 @@ fn podcast_persons_are_extracted_for_feed_track_and_live_item() {
 }
 
 #[test]
+fn publisher_feed_persons_and_rss_channel_image_are_extracted() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Publisher Feed</title>
+        <podcast:guid>publisher-feed-guid</podcast:guid>
+        <podcast:medium>publisher</podcast:medium>
+        <image>
+          <url>https://img.example.com/publisher-rss.jpg</url>
+        </image>
+        <podcast:person role="artist" group="music" href="https://example.com/artist" img="https://img.example.com/artist.jpg">Publisher Artist</podcast:person>
+        <podcast:remoteItem medium="music" feedGuid="music-feed-guid" feedUrl="https://example.com/music.xml"/>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.raw_medium.as_deref(), Some("publisher"));
+    assert_eq!(
+        feed.image_url.as_deref(),
+        Some("https://img.example.com/publisher-rss.jpg")
+    );
+    assert_eq!(feed.persons.len(), 1);
+    assert_eq!(feed.persons[0].name, "Publisher Artist");
+    assert_eq!(feed.persons[0].role.as_deref(), Some("artist"));
+    assert_eq!(
+        feed.persons[0].href.as_deref(),
+        Some("https://example.com/artist")
+    );
+    assert_eq!(
+        feed.persons[0].img.as_deref(),
+        Some("https://img.example.com/artist.jpg")
+    );
+    assert_eq!(feed.remote_items.len(), 1);
+}
+
+#[test]
+fn podcast_images_srcset_is_used_as_artwork_fallback() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Publisher Feed</title>
+        <podcast:guid>publisher-feed-guid</podcast:guid>
+        <podcast:medium>publisher</podcast:medium>
+        <podcast:images srcset="https://img.example.com/publisher-600.jpg 600w, https://img.example.com/publisher-1200.jpg 1200w"/>
+        <podcast:remoteItem medium="music" feedGuid="music-feed-guid"/>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(
+        feed.image_url.as_deref(),
+        Some("https://img.example.com/publisher-600.jpg")
+    );
+}
+
+#[test]
 fn podcast_txt_npub_is_extracted_as_entity_id_claim() {
     let xml = r#"<?xml version="1.0"?>
     <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">

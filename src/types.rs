@@ -21,7 +21,7 @@ pub struct IngestFeedData {
     pub title: String,
     /// Feed description, HTML-stripped.
     pub description: Option<String>,
-    /// Image URL from `itunes:image` or `<image><url>`.
+    /// Image URL from `itunes:image`, `podcast:images`, or `<image><url>`.
     pub image_url: Option<String>,
     /// Language code from `<language>`.
     pub language: Option<String>,
@@ -71,7 +71,7 @@ pub struct IngestTrackData {
     pub pub_date: Option<i64>,
     /// Duration in seconds.
     pub duration_secs: Option<i64>,
-    /// Track-level artwork URL from `itunes:image href`.
+    /// Track-level artwork URL from `itunes:image href` or `podcast:images`.
     pub image_url: Option<String>,
     /// Language code override for this track.
     pub language: Option<String>,

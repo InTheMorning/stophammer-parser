@@ -23,6 +23,8 @@ pub enum Transform {
     DecodeEntities,
     /// Lowercase the string.
     Lowercase,
+    /// Extract the first URL from a Podcast Namespace `srcset` value.
+    FirstSrcsetUrl,
 }
 
 /// Result of applying a transform: either a string or a parsed integer.
@@ -47,5 +49,17 @@ pub(crate) fn apply_transform(transform: Transform, value: &str) -> Option<Trans
         }
         Transform::DecodeEntities => Some(TransformResult::Text(decode_entities(value))),
         Transform::Lowercase => Some(TransformResult::Text(value.to_lowercase())),
+        Transform::FirstSrcsetUrl => first_srcset_url(value).map(TransformResult::Text),
     }
+}
+
+fn first_srcset_url(value: &str) -> Option<String> {
+    value.split(',').find_map(|candidate| {
+        candidate
+            .split_whitespace()
+            .next()
+            .map(str::trim)
+            .filter(|url| !url.is_empty())
+            .map(str::to_owned)
+    })
 }

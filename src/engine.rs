@@ -21,6 +21,10 @@ const PODCAST_NS: &str = "https://podcastindex.org/namespace/1.0";
 /// Legacy Podcast Namespace URI still emitted by some feeds.
 const PODCAST_NS_LEGACY: &str =
     "https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md";
+/// iTunes namespace URI used by the parser profile.
+const ITUNES_NS: &str = "http://www.itunes.com/dtds/podcast-1.0.dtd";
+/// HTTPS variant of the iTunes namespace URI emitted by some feeds.
+const ITUNES_NS_HTTPS: &str = "https://www.itunes.com/dtds/podcast-1.0.dtd";
 /// Atom namespace URI for `<atom:link rel="self">`.
 const ATOM_NS: &str = "http://www.w3.org/2005/Atom";
 
@@ -522,6 +526,7 @@ fn find_child<'a>(
 fn namespace_matches(actual: Option<&str>, expected: Option<&str>) -> bool {
     match expected {
         Some(PODCAST_NS) => is_podcast_namespace(actual),
+        Some(ITUNES_NS) => is_itunes_namespace(actual),
         Some(uri) => actual == Some(uri),
         None => true,
     }
@@ -529,6 +534,13 @@ fn namespace_matches(actual: Option<&str>, expected: Option<&str>) -> bool {
 
 fn is_podcast_namespace(actual: Option<&str>) -> bool {
     matches!(actual, Some(PODCAST_NS | PODCAST_NS_LEGACY))
+}
+
+fn is_itunes_namespace(actual: Option<&str>) -> bool {
+    actual.is_some_and(|uri| {
+        let normalized = uri.trim().to_ascii_lowercase();
+        normalized == ITUNES_NS || normalized == ITUNES_NS_HTTPS
+    })
 }
 
 /// Extracts text content from an element, handling both direct text and nested text nodes.

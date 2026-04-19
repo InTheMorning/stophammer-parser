@@ -198,6 +198,17 @@ fn feed_rules() -> Vec<Rule> {
             transform: Transform::None,
             target: Target::Feed(FeedField::ImageUrl),
         },
+        // Podcast Namespace: images srcset fallback
+        Rule {
+            phase: Phase::Phase5,
+            source: Source::Attr {
+                tag: "images",
+                ns: Some(PODCAST_NS),
+                attr: "srcset",
+            },
+            transform: Transform::FirstSrcsetUrl,
+            target: Target::Feed(FeedField::ImageUrl),
+        },
         // RSS2: image > url fallback
         Rule {
             phase: Phase::Rss2Core,
@@ -422,6 +433,17 @@ fn track_rules() -> Vec<Rule> {
                 attr: "href",
             },
             transform: Transform::None,
+            target: Target::Track(TrackField::ImageUrl),
+        },
+        // Podcast Namespace: item-level images srcset fallback
+        Rule {
+            phase: Phase::Phase5,
+            source: Source::Attr {
+                tag: "images",
+                ns: Some(PODCAST_NS),
+                attr: "srcset",
+            },
+            transform: Transform::FirstSrcsetUrl,
             target: Target::Track(TrackField::ImageUrl),
         },
         // iTunes: author
