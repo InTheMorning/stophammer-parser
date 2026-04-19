@@ -239,6 +239,13 @@ impl FeedParser {
             Vec::new()
         };
 
+        // Extract item-level remote items (Phase4)
+        let remote_items = if self.phases.contains(&Phase::Phase4) {
+            extract_item_remote_items(item)
+        } else {
+            Vec::new()
+        };
+
         Some(IngestTrackData {
             track_guid,
             title,
@@ -261,6 +268,7 @@ impl FeedParser {
             payment_routes,
             value_time_splits,
             transcripts,
+            remote_items,
         })
     }
 
@@ -361,7 +369,7 @@ impl FeedParser {
         }
 
         if track.language.is_none() {
-            track.language = feed.language.clone();
+            track.language.clone_from(&feed.language);
         }
         if !track.explicit_set && feed.explicit_set {
             track.explicit = feed.explicit;
@@ -662,8 +670,64 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
 
 fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedRef> {
     let mut refs = Vec::new();
+    let mut position: usize = 0;
 
-    for (position, remote) in channel
+    for child in channel.children() {
+        if !child.is_element() || !is_podcast_namespace(child.tag_name().namespace()) {
+            continue;
+        }
+        match child.tag_name().name() {
+            "remoteItem" => append_remote_ref(&mut refs, &mut position, &child, None),
+            // Podcast Namespace also allows the channel-level publisher
+            // relationship to be expressed as <podcast:publisher> wrapping
+            // a <podcast:remoteItem>. A nested remoteItem with no explicit
+            // medium is implicitly medium="publisher".
+            "publisher" => {
+                for nested in child.children().filter(|n| {
+                    n.is_element()
+                        && n.tag_name().name() == "remoteItem"
+                        && is_podcast_namespace(n.tag_name().namespace())
+                }) {
+                    append_remote_ref(&mut refs, &mut position, &nested, Some("publisher"));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    refs
+}
+
+fn append_remote_ref(
+    refs: &mut Vec<IngestRemoteFeedRef>,
+    position: &mut usize,
+    remote: &roxmltree::Node<'_, '_>,
+    default_medium: Option<&str>,
+) {
+    let Some(remote_feed_guid) = remote
+        .attribute("feedGuid")
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    else {
+        return;
+    };
+    let medium = remote
+        .attribute("medium")
+        .map(str::to_owned)
+        .or_else(|| default_medium.map(str::to_owned));
+    refs.push(IngestRemoteFeedRef {
+        position: usize_to_i64(*position),
+        medium,
+        remote_feed_guid: remote_feed_guid.to_owned(),
+        remote_feed_url: remote.attribute("feedUrl").map(str::to_owned),
+    });
+    *position += 1;
+}
+
+fn extract_item_remote_items(item: &roxmltree::Node) -> Vec<IngestRemoteFeedRef> {
+    let mut refs = Vec::new();
+
+    for (position, remote) in item
         .children()
         .filter(|n| {
             n.is_element()
@@ -672,6 +736,15 @@ fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedR
         })
         .enumerate()
     {
+        // Skip remoteItems that are inside valueTimeSplit
+        if remote
+            .ancestors()
+            .skip(1)
+            .any(|a| a.has_tag_name("valueTimeSplit"))
+        {
+            continue;
+        }
+
         let Some(remote_feed_guid) = remote
             .attribute("feedGuid")
             .map(str::trim)

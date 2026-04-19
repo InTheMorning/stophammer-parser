@@ -310,6 +310,82 @@ fn feed_level_remote_item_is_extracted() {
 }
 
 #[test]
+fn feed_level_publisher_wrapper_remote_item_is_extracted() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Wrapped Publisher Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:publisher>
+          <podcast:remoteItem medium="publisher" feedGuid="pub-feed-guid" feedUrl="https://example.com/pub.xml" />
+        </podcast:publisher>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items.len(), 1);
+    assert_eq!(feed.remote_items[0].medium.as_deref(), Some("publisher"));
+    assert_eq!(feed.remote_items[0].remote_feed_guid, "pub-feed-guid");
+    assert_eq!(
+        feed.remote_items[0].remote_feed_url.as_deref(),
+        Some("https://example.com/pub.xml")
+    );
+}
+
+#[test]
+fn feed_level_publisher_wrapper_defaults_medium_when_absent() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Wrapped Publisher No Medium</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:publisher>
+          <podcast:remoteItem feedGuid="pub-feed-guid" feedUrl="https://example.com/pub.xml" />
+        </podcast:publisher>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items.len(), 1);
+    assert_eq!(feed.remote_items[0].medium.as_deref(), Some("publisher"));
+    assert_eq!(feed.remote_items[0].remote_feed_guid, "pub-feed-guid");
+}
+
+#[test]
+fn feed_level_remote_items_mix_direct_and_wrapped_in_document_order() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Mixed Remote Items</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem medium="music" feedGuid="guid-a" feedUrl="https://example.com/a.xml" />
+        <podcast:publisher>
+          <podcast:remoteItem feedGuid="guid-b" feedUrl="https://example.com/b.xml" />
+        </podcast:publisher>
+        <podcast:remoteItem medium="music" feedGuid="guid-c" feedUrl="https://example.com/c.xml" />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items.len(), 3);
+    assert_eq!(feed.remote_items[0].position, 0);
+    assert_eq!(feed.remote_items[0].remote_feed_guid, "guid-a");
+    assert_eq!(feed.remote_items[0].medium.as_deref(), Some("music"));
+    assert_eq!(feed.remote_items[1].position, 1);
+    assert_eq!(feed.remote_items[1].remote_feed_guid, "guid-b");
+    assert_eq!(feed.remote_items[1].medium.as_deref(), Some("publisher"));
+    assert_eq!(feed.remote_items[2].position, 2);
+    assert_eq!(feed.remote_items[2].remote_feed_guid, "guid-c");
+    assert_eq!(feed.remote_items[2].medium.as_deref(), Some("music"));
+}
+
+#[test]
 fn live_item_is_extracted_separately_from_tracks() {
     let xml = r#"<?xml version="1.0"?>
     <rss xmlns:podcast="https://podcastindex.org/namespace/1.0"

@@ -105,6 +105,8 @@ pub struct IngestTrackData {
     pub value_time_splits: Vec<IngestValueTimeSplit>,
     /// Transcript files published for this track via `podcast:transcript`.
     pub transcripts: Vec<IngestTranscript>,
+    /// Item-level `podcast:remoteItem` references (not inside valueTimeSplit).
+    pub remote_items: Vec<IngestRemoteFeedRef>,
 }
 
 /// A channel-level `podcast:remoteItem` reference.
