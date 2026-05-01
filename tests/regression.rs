@@ -431,7 +431,7 @@ fn podcast_persons_are_extracted_for_feed_track_and_live_item() {
       <channel>
         <title>People Test</title>
         <podcast:guid>feed-guid</podcast:guid>
-        <podcast:person role="bandleader" group="music" href="https://example.com/artist" img="https://example.com/artist.jpg">Alice</podcast:person>
+        <podcast:person role="bandleader" group="music" href="https://example.com/artist" img="https://example.com/artist.jpg" npub="npub1alice">Alice</podcast:person>
         <podcast:liveItem status="live">
           <guid>live-guid-1</guid>
           <title>Live Show</title>
@@ -460,6 +460,7 @@ fn podcast_persons_are_extracted_for_feed_track_and_live_item() {
         feed.persons[0].img.as_deref(),
         Some("https://example.com/artist.jpg")
     );
+    assert_eq!(feed.persons[0].npub.as_deref(), Some("npub1alice"));
 
     assert_eq!(feed.tracks[0].persons.len(), 1);
     assert_eq!(feed.tracks[0].persons[0].name, "Bob");

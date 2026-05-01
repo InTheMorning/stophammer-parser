@@ -793,6 +793,7 @@ fn extract_persons(node: &roxmltree::Node) -> Vec<IngestPerson> {
                 group_name: child.attribute("group").map(str::to_owned),
                 href: child.attribute("href").map(str::to_owned),
                 img: child.attribute("img").map(str::to_owned),
+                npub: child.attribute("npub").map(str::to_owned),
             })
         })
         .collect()

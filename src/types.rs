@@ -139,6 +139,8 @@ pub struct IngestPerson {
     pub href: Option<String>,
     /// Img attribute, when present.
     pub img: Option<String>,
+    /// Npub attribute, when present.
+    pub npub: Option<String>,
 }
 
 /// A staged external identity claim extracted from typed feed metadata.
