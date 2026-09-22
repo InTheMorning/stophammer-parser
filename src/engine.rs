@@ -155,6 +155,7 @@ impl FeedParser {
             author_name: feed.author_name,
             owner_name: feed.owner_name,
             pub_date: feed.pub_date,
+            last_build_date: feed.last_build_date,
             remote_items,
             persons,
             entity_ids,
@@ -1117,6 +1118,7 @@ struct FeedDataBuilder {
     author_name: Option<String>,
     owner_name: Option<String>,
     pub_date: Option<i64>,
+    last_build_date: Option<i64>,
 }
 
 impl FeedDataBuilder {
@@ -1133,6 +1135,7 @@ impl FeedDataBuilder {
             FeedField::AuthorName => self.author_name.is_some(),
             FeedField::OwnerName => self.owner_name.is_some(),
             FeedField::PubDate => self.pub_date.is_some(),
+            FeedField::LastBuildDate => self.last_build_date.is_some(),
         }
     }
 
@@ -1152,6 +1155,9 @@ impl FeedDataBuilder {
             (FeedField::AuthorName, TransformResult::Text(v)) => self.author_name = Some(v),
             (FeedField::OwnerName, TransformResult::Text(v)) => self.owner_name = Some(v),
             (FeedField::PubDate, TransformResult::Int(v)) => self.pub_date = Some(v),
+            (FeedField::LastBuildDate, TransformResult::Int(v)) => {
+                self.last_build_date = Some(v);
+            }
             _ => {} // Type mismatch — silently skip
         }
     }

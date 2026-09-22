@@ -177,7 +177,9 @@ fn feed_rules() -> Vec<Rule> {
             transform: Transform::ParseDate,
             target: Target::Feed(FeedField::PubDate),
         },
-        // RSS2: lastBuildDate as pubDate fallback
+        // RSS2: lastBuildDate is the feed build time, not a publication date.
+        // It has its own field so a claim can name the element it came from.
+        // stophammer ADR 0043 owns this rule.
         Rule {
             phase: Phase::Rss2Core,
             source: Source::ChildText {
@@ -185,7 +187,7 @@ fn feed_rules() -> Vec<Rule> {
                 ns: None,
             },
             transform: Transform::ParseDate,
-            target: Target::Feed(FeedField::PubDate),
+            target: Target::Feed(FeedField::LastBuildDate),
         },
         // iTunes: image (href attribute)
         Rule {

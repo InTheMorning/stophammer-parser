@@ -101,6 +101,8 @@ pub enum FeedField {
     OwnerName,
     /// `pub_date`
     PubDate,
+    /// `last_build_date`
+    LastBuildDate,
 }
 
 /// Track-level output fields.

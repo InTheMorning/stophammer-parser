@@ -198,3 +198,56 @@ fn skips_items_without_guid() {
     assert_eq!(feed.tracks.len(), 2);
     assert!(feed.tracks.iter().all(|t| !t.title.contains("No GUID")));
 }
+
+// stophammer ADR 0043: a feed publication date records its source element.
+// `lastBuildDate` is the feed build time and must not supply `pub_date`.
+
+#[test]
+fn last_build_date_does_not_supply_pub_date() {
+    let xml = r#"<?xml version="1.0"?>
+<rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Build Date Only</title>
+    <podcast:guid>build-date-only</podcast:guid>
+    <lastBuildDate>Tue, 22 Sep 2026 10:00:00 GMT</lastBuildDate>
+    <item>
+      <guid>ep-1</guid>
+      <title>Episode 1</title>
+      <pubDate>Tue, 03 Jan 2023 08:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>"#;
+
+    let feed = profile::stophammer().parse(xml).unwrap();
+    assert_eq!(
+        feed.pub_date, None,
+        "lastBuildDate must not supply the feed pub_date"
+    );
+    assert!(
+        feed.last_build_date.is_some(),
+        "lastBuildDate must be kept as its own value"
+    );
+}
+
+#[test]
+fn pub_date_wins_when_both_elements_are_present() {
+    let xml = r#"<?xml version="1.0"?>
+<rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Both Dates</title>
+    <podcast:guid>both-dates</podcast:guid>
+    <pubDate>Tue, 03 Jan 2023 08:00:00 GMT</pubDate>
+    <lastBuildDate>Tue, 22 Sep 2026 10:00:00 GMT</lastBuildDate>
+  </channel>
+</rss>"#;
+
+    let feed = profile::stophammer().parse(xml).unwrap();
+    let pub_date = feed
+        .pub_date
+        .expect("pubDate must supply the feed pub_date");
+    let last_build = feed.last_build_date.expect("lastBuildDate must be kept");
+    assert!(
+        pub_date < last_build,
+        "pub_date {pub_date} must come from pubDate, not from lastBuildDate {last_build}"
+    );
+}

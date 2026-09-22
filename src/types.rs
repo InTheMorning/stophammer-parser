@@ -37,6 +37,11 @@ pub struct IngestFeedData {
     pub owner_name: Option<String>,
     /// Channel publication date as Unix seconds.
     pub pub_date: Option<i64>,
+    /// Channel `lastBuildDate` as Unix seconds.
+    ///
+    /// This is the time the feed file was generated. It is not a publication
+    /// date, and a generator can rewrite it on every fetch.
+    pub last_build_date: Option<i64>,
     /// Feed-level `podcast:remoteItem` references to artist/publisher feeds.
     pub remote_items: Vec<IngestRemoteFeedRef>,
     /// Feed-level contributor claims from `podcast:person`.
