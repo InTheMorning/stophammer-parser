@@ -11,8 +11,10 @@ Follow the `project-baseline` skill. It holds the shared working rules.
 
 ## Where The Work Stands
 
-2026-09-22: no change is in progress here. `stophammer` ADR 0043 is Proposed
-and changes this crate. Do not implement it before the operator accepts it.
+2026-09-23: no change is in progress here. `stophammer` ADR 0043 is Accepted,
+and this crate carries it. `FeedField::LastBuildDate` holds `lastBuildDate`, and
+no rule lets that element supply a release date. `src/profile.rs:183` is the
+rule.
 
 ## What Is True Here
 
