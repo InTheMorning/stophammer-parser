@@ -733,6 +733,10 @@ fn append_remote_ref(
         medium,
         remote_feed_guid: remote_feed_guid.to_owned(),
         remote_feed_url: remote.attribute("feedUrl").map(str::to_owned),
+        rel: remote
+            .attribute("rel")
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned),
     });
     *position += 1;
 }
@@ -771,6 +775,10 @@ fn extract_item_remote_items(item: &roxmltree::Node) -> Vec<IngestRemoteFeedRef>
             medium: remote.attribute("medium").map(str::to_owned),
             remote_feed_guid: remote_feed_guid.to_owned(),
             remote_feed_url: remote.attribute("feedUrl").map(str::to_owned),
+            rel: remote
+                .attribute("rel")
+                .filter(|v| !v.is_empty())
+                .map(str::to_owned),
         });
     }
 

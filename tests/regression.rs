@@ -694,3 +694,121 @@ fn alternate_enclosures_are_extracted_for_tracks_and_live_items() {
         Some("stream")
     );
 }
+
+/// ADR 0049 §6: a channel-level `podcast:remoteItem` keeps its raw `rel`
+/// attribute.
+#[test]
+fn channel_remote_item_rel_is_captured() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Rel Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem medium="music" feedGuid="g" feedUrl="u" rel="label" />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items[0].rel.as_deref(), Some("label"));
+}
+
+/// ADR 0049 §6: a `podcast:remoteItem` with no `rel` attribute gives `None`.
+#[test]
+fn channel_remote_item_without_rel_is_none() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>No Rel Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem medium="music" feedGuid="g" feedUrl="u" />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items[0].rel, None);
+}
+
+/// ADR 0049 §6: a `podcast:remoteItem` in `podcast:publisher` keeps its
+/// `rel`.
+#[test]
+fn publisher_wrapped_remote_item_keeps_rel() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Publisher Rel Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:publisher>
+          <podcast:remoteItem feedGuid="pub-guid" feedUrl="https://example.com/pub.xml" rel="label" />
+        </podcast:publisher>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items[0].rel.as_deref(), Some("label"));
+}
+
+/// ADR 0049 §6: an item-level `podcast:remoteItem` keeps its `rel`.
+#[test]
+fn item_level_remote_item_keeps_rel() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Item Rel Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <item>
+          <guid>track-guid</guid>
+          <title>Track</title>
+          <podcast:remoteItem medium="music" feedGuid="item-guid" feedUrl="https://example.com/item.xml" rel="producer" />
+        </item>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(
+        feed.tracks[0].remote_items[0].rel.as_deref(),
+        Some("producer")
+    );
+}
+
+/// ADR 0049 §6: the parser keeps `rel` raw. It does not cut white space.
+#[test]
+fn remote_item_rel_is_kept_raw() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Raw Rel Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem medium="music" feedGuid="g" feedUrl="u" rel=" Producer " />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items[0].rel.as_deref(), Some(" Producer "));
+}
+
+/// ADR 0049 §6: JSON with no `rel` key decodes. `rel` is `None`.
+#[cfg(feature = "serde")]
+#[test]
+fn remote_feed_ref_rel_defaults_when_json_omits_it() {
+    let json = r#"{
+        "position": 0,
+        "medium": "music",
+        "remote_feed_guid": "g",
+        "remote_feed_url": "u"
+    }"#;
+
+    let remote_ref: stophammer_parser::IngestRemoteFeedRef =
+        serde_json::from_str(json).expect("json with no rel key should decode");
+
+    assert_eq!(remote_ref.rel, None);
+}

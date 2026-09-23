@@ -126,6 +126,13 @@ pub struct IngestRemoteFeedRef {
     pub remote_feed_guid: String,
     /// Optional remote feed URL.
     pub remote_feed_url: Option<String>,
+    /// Raw `rel` attribute of the `podcast:remoteItem` element.
+    ///
+    /// The Podcast Namespace does not specify `rel` on `podcast:remoteItem`.
+    /// The value is non-standard. A missing or empty attribute gives `None`.
+    /// The parser keeps the value unchanged.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub rel: Option<String>,
 }
 
 /// A `podcast:person` contributor claim.
