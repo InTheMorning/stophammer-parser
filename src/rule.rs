@@ -103,6 +103,12 @@ pub enum FeedField {
     PubDate,
     /// `last_build_date`
     LastBuildDate,
+    /// `new_feed_url`
+    NewFeedUrl,
+    /// `locked`
+    Locked,
+    /// `locked_owner`
+    LockedOwner,
 }
 
 /// Track-level output fields.

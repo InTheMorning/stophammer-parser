@@ -11,8 +11,13 @@ Follow the `project-baseline` skill. It holds the shared working rules.
 
 ## Where The Work Stands
 
-2026-09-23: no change is in progress here. `stophammer` ADR 0043 is Accepted,
-and this crate carries it. `FeedField::LastBuildDate` holds `lastBuildDate`, and
+2026-09-25: `stophammer` ADR 0052 task 004 is complete. `IngestFeedData` has
+`new_feed_url` from the channel `itunes:new-feed-url`, and `locked` and
+`locked_owner` from the channel `podcast:locked`. Three rules in
+`src/profile.rs` fill them. `stophammer-crawler` builds against this crate by
+path, so the two commits go together.
+
+`stophammer` ADR 0043 is Accepted, and this crate carries it. `FeedField::LastBuildDate` holds `lastBuildDate`, and
 no rule lets that element supply a release date. `src/profile.rs:183` is the
 rule.
 

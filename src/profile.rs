@@ -265,6 +265,37 @@ fn feed_rules() -> Vec<Rule> {
             transform: Transform::DecodeEntities,
             target: Target::Feed(FeedField::OwnerName),
         },
+        // iTunes: new-feed-url. Stophammer ADR 0052 owns this rule.
+        Rule {
+            phase: Phase::Itunes,
+            source: Source::ChildText {
+                tag: "new-feed-url",
+                ns: Some(ITUNES_NS),
+            },
+            transform: Transform::TrimText,
+            target: Target::Feed(FeedField::NewFeedUrl),
+        },
+        // Podcast: locked flag. Stophammer ADR 0052 owns this rule.
+        Rule {
+            phase: Phase::Phase1,
+            source: Source::ChildText {
+                tag: "locked",
+                ns: Some(PODCAST_NS),
+            },
+            transform: Transform::LockedBool,
+            target: Target::Feed(FeedField::Locked),
+        },
+        // Podcast: locked owner attribute. Stophammer ADR 0052 owns this rule.
+        Rule {
+            phase: Phase::Phase1,
+            source: Source::ChildAttr {
+                tag: "locked",
+                ns: Some(PODCAST_NS),
+                attr: "owner",
+            },
+            transform: Transform::TrimText,
+            target: Target::Feed(FeedField::LockedOwner),
+        },
     ]
 }
 

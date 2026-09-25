@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Move Fields Test</title>
+    <podcast:guid>feed-guid-move</podcast:guid>
+    <itunes:new-feed-url> https://new.example/feed.xml </itunes:new-feed-url>
+    <podcast:locked owner="a@b.example">yes</podcast:locked>
+    <item>
+      <guid>track-1</guid>
+      <title>Episode One</title>
+    </item>
+  </channel>
+</rss>

@@ -25,6 +25,15 @@ pub enum Transform {
     Lowercase,
     /// Extract the first URL from a Podcast Namespace `srcset` value.
     FirstSrcsetUrl,
+    /// Trim white space. An empty result gives no value.
+    ///
+    /// Stophammer ADR 0052 owns this transform.
+    TrimText,
+    /// Parse a `podcast:locked` flag (stophammer ADR 0052).
+    ///
+    /// The check trims the text and folds its case first. `yes` gives
+    /// `true`. `no` gives `false`. Any other text gives no value.
+    LockedBool,
 }
 
 /// Result of applying a transform: either a string or a parsed integer.
@@ -50,6 +59,15 @@ pub(crate) fn apply_transform(transform: Transform, value: &str) -> Option<Trans
         Transform::DecodeEntities => Some(TransformResult::Text(decode_entities(value))),
         Transform::Lowercase => Some(TransformResult::Text(value.to_lowercase())),
         Transform::FirstSrcsetUrl => first_srcset_url(value).map(TransformResult::Text),
+        Transform::TrimText => {
+            let trimmed = value.trim();
+            (!trimmed.is_empty()).then(|| TransformResult::Text(trimmed.to_owned()))
+        }
+        Transform::LockedBool => match value.trim().to_ascii_lowercase().as_str() {
+            "yes" => Some(TransformResult::Bool(true)),
+            "no" => Some(TransformResult::Bool(false)),
+            _ => None,
+        },
     }
 }
 

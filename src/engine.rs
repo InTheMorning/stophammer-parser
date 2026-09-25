@@ -156,6 +156,9 @@ impl FeedParser {
             owner_name: feed.owner_name,
             pub_date: feed.pub_date,
             last_build_date: feed.last_build_date,
+            new_feed_url: feed.new_feed_url,
+            locked: feed.locked,
+            locked_owner: feed.locked_owner,
             remote_items,
             persons,
             entity_ids,
@@ -1127,6 +1130,9 @@ struct FeedDataBuilder {
     owner_name: Option<String>,
     pub_date: Option<i64>,
     last_build_date: Option<i64>,
+    new_feed_url: Option<String>,
+    locked: Option<bool>,
+    locked_owner: Option<String>,
 }
 
 impl FeedDataBuilder {
@@ -1144,6 +1150,9 @@ impl FeedDataBuilder {
             FeedField::OwnerName => self.owner_name.is_some(),
             FeedField::PubDate => self.pub_date.is_some(),
             FeedField::LastBuildDate => self.last_build_date.is_some(),
+            FeedField::NewFeedUrl => self.new_feed_url.is_some(),
+            FeedField::Locked => self.locked.is_some(),
+            FeedField::LockedOwner => self.locked_owner.is_some(),
         }
     }
 
@@ -1166,6 +1175,9 @@ impl FeedDataBuilder {
             (FeedField::LastBuildDate, TransformResult::Int(v)) => {
                 self.last_build_date = Some(v);
             }
+            (FeedField::NewFeedUrl, TransformResult::Text(v)) => self.new_feed_url = Some(v),
+            (FeedField::Locked, TransformResult::Bool(v)) => self.locked = Some(v),
+            (FeedField::LockedOwner, TransformResult::Text(v)) => self.locked_owner = Some(v),
             _ => {} // Type mismatch — silently skip
         }
     }

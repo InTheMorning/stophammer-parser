@@ -42,6 +42,31 @@ pub struct IngestFeedData {
     /// This is the time the feed file was generated. It is not a publication
     /// date, and a generator can rewrite it on every fetch.
     pub last_build_date: Option<i64>,
+    /// The channel `itunes:new-feed-url`, trimmed.
+    ///
+    /// Stophammer ADR 0052 owns this field. An empty value gives `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub new_feed_url: Option<String>,
+    /// The channel `podcast:locked` text, as a flag.
+    ///
+    /// Stophammer ADR 0052 owns this field. `yes` gives `true`. `no` gives
+    /// `false`. Any other text gives `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub locked: Option<bool>,
+    /// The `owner` attribute of the channel `podcast:locked`, trimmed.
+    ///
+    /// Stophammer ADR 0052 owns this field. An empty value gives `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub locked_owner: Option<String>,
     /// Feed-level `podcast:remoteItem` references to artist/publisher feeds.
     pub remote_items: Vec<IngestRemoteFeedRef>,
     /// Feed-level contributor claims from `podcast:person`.

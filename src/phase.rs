@@ -12,9 +12,10 @@
 pub enum Phase {
     /// RSS 2.0 base spec: title, guid, enclosure, pubDate.
     Rss2Core,
-    /// iTunes namespace: duration, explicit, author, image, type, season, episode.
+    /// iTunes namespace: duration, explicit, author, image, type, season,
+    /// episode, `new-feed-url`.
     Itunes,
-    /// Phase 1: `podcast:guid`, `podcast:medium`.
+    /// Phase 1: `podcast:guid`, `podcast:medium`, `podcast:locked`.
     Phase1,
     /// Phase 2: `podcast:value` (payment routes).
     Phase2,
