@@ -731,6 +731,16 @@ fn append_remote_ref(
         .attribute("medium")
         .map(str::to_owned)
         .or_else(|| default_medium.map(str::to_owned));
+    let item_guid = remote
+        .attribute("itemGuid")
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_owned);
+    let item_title = remote
+        .attribute("title")
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_owned);
     refs.push(IngestRemoteFeedRef {
         position: usize_to_i64(*position),
         medium,
@@ -740,6 +750,8 @@ fn append_remote_ref(
             .attribute("rel")
             .filter(|v| !v.is_empty())
             .map(str::to_owned),
+        item_guid,
+        item_title,
     });
     *position += 1;
 }
@@ -773,6 +785,17 @@ fn extract_item_remote_items(item: &roxmltree::Node) -> Vec<IngestRemoteFeedRef>
             continue;
         };
 
+        let item_guid = remote
+            .attribute("itemGuid")
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned);
+        let item_title = remote
+            .attribute("title")
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned);
+
         refs.push(IngestRemoteFeedRef {
             position: usize_to_i64(position),
             medium: remote.attribute("medium").map(str::to_owned),
@@ -782,6 +805,8 @@ fn extract_item_remote_items(item: &roxmltree::Node) -> Vec<IngestRemoteFeedRef>
                 .attribute("rel")
                 .filter(|v| !v.is_empty())
                 .map(str::to_owned),
+            item_guid,
+            item_title,
         });
     }
 

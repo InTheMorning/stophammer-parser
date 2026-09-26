@@ -158,6 +158,22 @@ pub struct IngestRemoteFeedRef {
     /// The parser keeps the value unchanged.
     #[cfg_attr(feature = "serde", serde(default))]
     pub rel: Option<String>,
+    /// The `itemGuid` attribute of the `podcast:remoteItem` element, trimmed.
+    ///
+    /// Stophammer ADR 0060 owns this field. An empty value gives `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub item_guid: Option<String>,
+    /// The `title` attribute of the `podcast:remoteItem` element, trimmed.
+    ///
+    /// Stophammer ADR 0060 owns this field. An empty value gives `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub item_title: Option<String>,
 }
 
 /// A `podcast:person` contributor claim.

@@ -812,3 +812,99 @@ fn remote_feed_ref_rel_defaults_when_json_omits_it() {
 
     assert_eq!(remote_ref.rel, None);
 }
+
+#[test]
+fn channel_remote_item_with_item_guid_and_title() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Remote Item GUID Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem feedGuid="abc" itemGuid="abc" title="Song" />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items.len(), 1);
+    assert_eq!(
+        feed.remote_items[0].item_guid,
+        Some("abc".to_string()),
+        "ADR 0060 §1: channel remoteItem with itemGuid should be extracted"
+    );
+    assert_eq!(
+        feed.remote_items[0].item_title,
+        Some("Song".to_string()),
+        "ADR 0060 §1: channel remoteItem with title should be extracted"
+    );
+}
+
+#[test]
+fn channel_remote_item_without_item_guid_and_title() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Remote Item Without GUID Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem feedGuid="feed-guid" />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items.len(), 1);
+    assert_eq!(feed.remote_items[0].item_guid, None);
+    assert_eq!(feed.remote_items[0].item_title, None);
+}
+
+#[test]
+fn channel_remote_item_with_whitespace_item_guid() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Remote Item Whitespace Test</title>
+        <podcast:guid>feed-guid</podcast:guid>
+        <podcast:remoteItem feedGuid="feed-guid" itemGuid="  " title="   " />
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let feed = parser.parse(xml).unwrap();
+
+    assert_eq!(feed.remote_items.len(), 1);
+    assert_eq!(
+        feed.remote_items[0].item_guid, None,
+        "whitespace-only itemGuid should be None"
+    );
+    assert_eq!(
+        feed.remote_items[0].item_title, None,
+        "whitespace-only title should be None"
+    );
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn remote_feed_ref_serialization_omits_none_item_fields() {
+    let json = r#"{
+        "position": 0,
+        "medium": "music",
+        "remote_feed_guid": "g",
+        "remote_feed_url": "u"
+    }"#;
+
+    let remote_ref: stophammer_parser::IngestRemoteFeedRef =
+        serde_json::from_str(json).expect("json without item fields should decode");
+
+    let serialized = serde_json::to_string(&remote_ref).expect("should serialize");
+
+    assert!(
+        !serialized.contains("item_guid"),
+        "serialized JSON should not contain item_guid when None"
+    );
+    assert!(
+        !serialized.contains("item_title"),
+        "serialized JSON should not contain item_title when None"
+    );
+}
