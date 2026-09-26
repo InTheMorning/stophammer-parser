@@ -75,6 +75,14 @@ pub struct IngestFeedData {
     pub entity_ids: Vec<IngestEntityId>,
     /// Feed-level typed links such as websites or self-feed URLs.
     pub links: Vec<IngestLink>,
+    /// Channel-level `podcast:block` tags (ADR 0057).
+    ///
+    /// The node evaluates these to determine whether to ingest the feed.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
+    pub blocks: Vec<IngestBlockTag>,
     /// Full Podcast Namespace 1.0 snapshot captured from channel/item/liveItem XML.
     #[cfg_attr(
         feature = "serde",
@@ -87,6 +95,22 @@ pub struct IngestFeedData {
     pub live_items: Vec<IngestLiveItemData>,
     /// Parsed tracks (items) from the feed.
     pub tracks: Vec<IngestTrackData>,
+}
+
+/// A channel-level `podcast:block` tag.
+///
+/// Stophammer ADR 0057 owns this field.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestBlockTag {
+    /// The `id` attribute of the tag, trimmed. An empty attribute gives `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub id: Option<String>,
+    /// The text content of the tag, trimmed. The case is preserved.
+    pub value: String,
 }
 
 /// Parsed track (episode/item) data.

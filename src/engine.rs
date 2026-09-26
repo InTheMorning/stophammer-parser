@@ -11,9 +11,10 @@ use crate::phase::Phase;
 use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
-    IngestAlternateEnclosure, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
-    IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag,
-    IngestRemoteFeedRef, IngestTrackData, IngestTranscript, IngestValueTimeSplit, RouteType,
+    IngestAlternateEnclosure, IngestBlockTag, IngestEntityId, IngestFeedData, IngestLink,
+    IngestLiveItemData, IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot,
+    IngestPodcastNamespaceTag, IngestRemoteFeedRef, IngestTrackData, IngestTranscript,
+    IngestValueTimeSplit, RouteType,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -131,6 +132,7 @@ impl FeedParser {
             Vec::new()
         };
         let links = extract_links(&channel, "feed");
+        let blocks = extract_blocks(&channel);
         let podcast_namespace = extract_podcast_namespace_from_node(&channel);
         let tracks = self.parse_items(&channel, &feed);
         let live_items = self.parse_live_items(&channel, &feed);
@@ -163,6 +165,7 @@ impl FeedParser {
             persons,
             entity_ids,
             links,
+            blocks,
             podcast_namespace,
             feed_payment_routes,
             live_items,
@@ -613,6 +616,35 @@ fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
     }
 
     routes
+}
+
+/// Extracts channel-level `podcast:block` tags in source order.
+///
+/// ADR 0057 §5 owns this extraction. Each tag has an optional `id` attribute
+/// and text content. Both are trimmed. An empty `id` gives `None`.
+fn extract_blocks(channel: &roxmltree::Node) -> Vec<IngestBlockTag> {
+    let mut blocks = Vec::new();
+
+    for block_node in channel.children().filter(|n| {
+        n.is_element()
+            && n.tag_name().name() == "block"
+            && is_podcast_namespace(n.tag_name().namespace())
+    }) {
+        let id = block_node.attribute("id").and_then(|id| {
+            let trimmed = id.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_owned())
+            }
+        });
+
+        let value = child_text(&block_node).unwrap_or_default();
+
+        blocks.push(IngestBlockTag { id, value });
+    }
+
+    blocks
 }
 
 /// Extracts `podcast:valueTimeSplit` entries with `podcast:remoteItem` children.
