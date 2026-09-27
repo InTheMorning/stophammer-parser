@@ -327,6 +327,8 @@ impl FeedParser {
             .map(str::to_owned)
             .or_else(|| track.enclosure_url.clone());
 
+        let (live_value_uri, live_value_protocol) = extract_live_value(live_item);
+
         Some(IngestLiveItemData {
             live_item_guid,
             title,
@@ -353,6 +355,8 @@ impl FeedParser {
             payment_routes,
             value_time_splits,
             transcripts,
+            live_value_uri,
+            live_value_protocol,
         })
     }
 
@@ -565,6 +569,35 @@ fn child_text(node: &roxmltree::Node) -> Option<String> {
     } else {
         Some(trimmed.to_owned())
     }
+}
+
+/// Extracts the relay URI and protocol from the first direct
+/// `podcast:liveValue` child of a live item (ADR 0064 §3).
+///
+/// A missing `liveValue`, or a `liveValue` with no `uri` or an empty `uri`,
+/// gives `None` for both parts.
+fn extract_live_value(node: &roxmltree::Node) -> (Option<String>, Option<String>) {
+    let Some(live_value) = find_child(node, "liveValue", Some(PODCAST_NS)) else {
+        return (None, None);
+    };
+
+    let uri = live_value
+        .attribute("uri")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+
+    let Some(uri) = uri else {
+        return (None, None);
+    };
+
+    let protocol = live_value
+        .attribute("protocol")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+
+    (Some(uri), protocol)
 }
 
 /// Extracts `podcast:value > podcast:valueRecipient` payment routes from a node.

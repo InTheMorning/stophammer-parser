@@ -338,6 +338,10 @@ pub struct IngestLiveItemData {
     pub value_time_splits: Vec<IngestValueTimeSplit>,
     /// Transcript files published for this live item via `podcast:transcript`.
     pub transcripts: Vec<IngestTranscript>,
+    /// Relay URI from the first direct `podcast:liveValue` child.
+    pub live_value_uri: Option<String>,
+    /// Relay protocol from the first direct `podcast:liveValue` child.
+    pub live_value_protocol: Option<String>,
 }
 
 /// Full Podcast Namespace 1.0 snapshot for a parsed feed.
