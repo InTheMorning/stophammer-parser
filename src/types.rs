@@ -198,6 +198,15 @@ pub struct IngestRemoteFeedRef {
         serde(default, skip_serializing_if = "Option::is_none")
     )]
     pub item_title: Option<String>,
+    /// True when this is the publisher of the album, false for credits.
+    ///
+    /// Stophammer ADR 0069 §3 owns this field. The publisher is the item
+    /// inside `<podcast:publisher>`, or the first bare channel
+    /// `remoteItem` with `medium="publisher"` when there is no
+    /// `<podcast:publisher>`. A credit is each other bare item. The parser
+    /// gives false for music items and for each other item kind.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub publisher_reference: bool,
 }
 
 /// A `podcast:person` contributor claim.

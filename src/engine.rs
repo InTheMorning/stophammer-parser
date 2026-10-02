@@ -753,12 +753,42 @@ fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedR
     let mut refs = Vec::new();
     let mut position: usize = 0;
 
+    // First, check if there is a podcast:publisher wrapper.
+    let has_podcast_publisher = channel.children().any(|child| {
+        child.is_element()
+            && child.tag_name().name() == "publisher"
+            && is_podcast_namespace(child.tag_name().namespace())
+    });
+
+    // Track whether we have seen a bare publisher item.
+    let mut seen_bare_publisher = false;
+
     for child in channel.children() {
         if !child.is_element() || !is_podcast_namespace(child.tag_name().namespace()) {
             continue;
         }
         match child.tag_name().name() {
-            "remoteItem" => append_remote_ref(&mut refs, &mut position, &child, None),
+            "remoteItem" => {
+                let is_publisher_reference = if has_podcast_publisher {
+                    false
+                } else {
+                    // If no podcast:publisher, first bare publisher item is the publisher.
+                    let medium = child.attribute("medium").map(str::to_owned);
+                    if medium.as_deref() == Some("publisher") && !seen_bare_publisher {
+                        seen_bare_publisher = true;
+                        true
+                    } else {
+                        false
+                    }
+                };
+                append_remote_ref(
+                    &mut refs,
+                    &mut position,
+                    &child,
+                    None,
+                    is_publisher_reference,
+                );
+            }
             // Podcast Namespace also allows the channel-level publisher
             // relationship to be expressed as <podcast:publisher> wrapping
             // a <podcast:remoteItem>. A nested remoteItem with no explicit
@@ -769,7 +799,7 @@ fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedR
                         && n.tag_name().name() == "remoteItem"
                         && is_podcast_namespace(n.tag_name().namespace())
                 }) {
-                    append_remote_ref(&mut refs, &mut position, &nested, Some("publisher"));
+                    append_remote_ref(&mut refs, &mut position, &nested, Some("publisher"), true);
                 }
             }
             _ => {}
@@ -784,6 +814,7 @@ fn append_remote_ref(
     position: &mut usize,
     remote: &roxmltree::Node<'_, '_>,
     default_medium: Option<&str>,
+    publisher_reference: bool,
 ) {
     let Some(remote_feed_guid) = remote
         .attribute("feedGuid")
@@ -817,6 +848,7 @@ fn append_remote_ref(
             .map(str::to_owned),
         item_guid,
         item_title,
+        publisher_reference,
     });
     *position += 1;
 }
@@ -872,6 +904,7 @@ fn extract_item_remote_items(item: &roxmltree::Node) -> Vec<IngestRemoteFeedRef>
                 .map(str::to_owned),
             item_guid,
             item_title,
+            publisher_reference: false,
         });
     }
 
