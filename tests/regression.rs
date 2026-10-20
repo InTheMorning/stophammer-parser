@@ -76,8 +76,8 @@ fn vts_reads_remote_item_child() {
     let parser = profile::stophammer();
     let feed = parser.parse(xml).unwrap();
     let vts = &feed.tracks[0].value_time_splits[0];
-    assert_eq!(vts.remote_feed_guid, "correct-feed");
-    assert_eq!(vts.remote_item_guid, "correct-item");
+    assert_eq!(vts.remote_feed_guid.as_deref(), Some("correct-feed"));
+    assert_eq!(vts.remote_item_guid.as_deref(), Some("correct-item"));
 }
 
 /// Sprint 5 Bug 3: explicit accepts both "yes" and "true".

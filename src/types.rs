@@ -401,20 +401,42 @@ pub struct IngestPaymentRoute {
     pub fee: bool,
 }
 
-/// A value time split referencing a remote item.
+/// The form of a value time split (stophammer ADR 0073 §1).
+///
+/// A remote split names a remote item. A local split names its own
+/// recipients.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum ValueTimeSplitForm {
+    /// The split names a remote item, with an optional share and start time.
+    Remote,
+    /// The split names its own recipients.
+    Local,
+}
+
+/// A value time split in the form the source states (stophammer ADR 0073
+/// §1).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct IngestValueTimeSplit {
-    /// Start time in seconds from beginning of playback.
-    pub start_time_secs: i64,
-    /// Duration in seconds (None = until next split or end).
-    pub duration_secs: Option<i64>,
-    /// GUID of the remote feed to pay.
-    pub remote_feed_guid: String,
-    /// GUID of the remote item to pay.
-    pub remote_item_guid: String,
-    /// Split weight (integer).
-    pub split: i64,
+    /// The form of the split: remote or local.
+    pub form: ValueTimeSplitForm,
+    /// Start time in seconds from the start of playback. Can be a fraction.
+    pub start_time_secs: f64,
+    /// Duration in seconds, or `None` when the source states none.
+    pub duration_secs: Option<f64>,
+    /// GUID of the remote feed to pay. `None` in the local form.
+    pub remote_feed_guid: Option<String>,
+    /// GUID of the remote item to pay. Can be `None` in the remote form.
+    pub remote_item_guid: Option<String>,
+    /// The stated `remoteStartTime`, or `None` when the source states none.
+    pub remote_start_time_secs: Option<f64>,
+    /// The stated `remotePercentage`, or `None` when the source states none.
+    pub remote_percentage: Option<f64>,
+    /// The recipients of a local split, in source order. Empty in the remote
+    /// form.
+    pub recipients: Vec<IngestPaymentRoute>,
 }
 
 /// Lightning payment route type.

@@ -48,5 +48,5 @@ pub use error::ParseError;
 pub use types::{
     IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute,
     IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag, IngestRemoteFeedRef,
-    IngestTrackData, IngestValueTimeSplit, RouteType,
+    IngestTrackData, IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
 };

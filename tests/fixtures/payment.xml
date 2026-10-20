@@ -29,7 +29,7 @@
       <podcast:value type="lightning" method="keysend">
         <podcast:valueRecipient name="Host" type="node" address="hostpubkey" split="100"/>
         <podcast:valueTimeSplit startTime="0" remotePercentage="50" split="50">
-          <podcast:remoteItem feedGuid="should-skip" itemGuid="should-skip"/>
+          <podcast:remoteItem feedGuid="percentage-feed" itemGuid="percentage-item"/>
         </podcast:valueTimeSplit>
       </podcast:value>
     </item>

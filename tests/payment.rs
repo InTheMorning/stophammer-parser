@@ -1,4 +1,5 @@
 use stophammer_parser::RouteType;
+use stophammer_parser::ValueTimeSplitForm;
 use stophammer_parser::profile;
 
 fn payment_xml() -> &'static str {
@@ -47,6 +48,10 @@ fn extracts_track_payment_routes() {
 }
 
 #[test]
+#[expect(
+    clippy::float_cmp,
+    reason = "the source states a short decimal, so the parsed value is exact"
+)]
 fn extracts_value_time_splits() {
     let parser = profile::stophammer();
     let feed = parser.parse(payment_xml()).unwrap();
@@ -55,26 +60,33 @@ fn extracts_value_time_splits() {
     assert_eq!(track.value_time_splits.len(), 2);
 
     let vts1 = &track.value_time_splits[0];
-    assert_eq!(vts1.start_time_secs, 60);
-    assert_eq!(vts1.duration_secs, Some(120));
-    assert_eq!(vts1.remote_feed_guid, "remote-feed-guid");
-    assert_eq!(vts1.remote_item_guid, "remote-item-guid");
-    assert_eq!(vts1.split, 50);
+    assert_eq!(vts1.form, ValueTimeSplitForm::Remote);
+    assert_eq!(vts1.start_time_secs, 60.0);
+    assert_eq!(vts1.duration_secs, Some(120.0));
+    assert_eq!(vts1.remote_feed_guid.as_deref(), Some("remote-feed-guid"));
+    assert_eq!(vts1.remote_item_guid.as_deref(), Some("remote-item-guid"));
+    assert_eq!(vts1.remote_percentage, None);
 
     let vts2 = &track.value_time_splits[1];
-    assert_eq!(vts2.start_time_secs, 300);
+    assert_eq!(vts2.start_time_secs, 300.0);
     assert_eq!(vts2.duration_secs, None);
-    assert_eq!(vts2.remote_feed_guid, "remote-feed-2");
-    assert_eq!(vts2.remote_item_guid, "remote-item-2");
+    assert_eq!(vts2.remote_feed_guid.as_deref(), Some("remote-feed-2"));
+    assert_eq!(vts2.remote_item_guid.as_deref(), Some("remote-item-2"));
 }
 
+/// Before stophammer ADR 0073, the parser dropped a split with a stated
+/// `remotePercentage`. The specification does not agree, so the parser now
+/// keeps the split, with the stated share.
 #[test]
-fn skips_vts_with_remote_percentage() {
+fn keeps_vts_with_remote_percentage() {
     let parser = profile::stophammer();
     let feed = parser.parse(payment_xml()).unwrap();
 
     let track = &feed.tracks[1];
-    assert!(track.value_time_splits.is_empty());
+    assert_eq!(track.value_time_splits.len(), 1);
+    let vts = &track.value_time_splits[0];
+    assert_eq!(vts.form, ValueTimeSplitForm::Remote);
+    assert_eq!(vts.remote_percentage, Some(50.0));
 }
 
 #[test]

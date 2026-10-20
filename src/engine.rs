@@ -14,7 +14,7 @@ use crate::types::{
     IngestAlternateEnclosure, IngestBlockTag, IngestEntityId, IngestFeedData, IngestLink,
     IngestLiveItemData, IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot,
     IngestPodcastNamespaceTag, IngestRemoteFeedRef, IngestTrackData, IngestTranscript,
-    IngestValueTimeSplit, RouteType,
+    IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -589,6 +589,45 @@ fn extract_live_value(node: &roxmltree::Node) -> (Option<String>, Option<String>
     (Some(uri), protocol)
 }
 
+/// Reads one `podcast:valueRecipient` element into a payment route.
+///
+/// A track payment route and a local-form value time split recipient
+/// (stophammer ADR 0073 §1) use this same rule. A recipient with no address,
+/// or an empty address, gives no route.
+fn read_payment_recipient(recipient: &roxmltree::Node) -> Option<IngestPaymentRoute> {
+    let address = match recipient.attribute("address") {
+        Some(a) if !a.trim().is_empty() => a.trim().to_owned(),
+        _ => return None, // Skip recipients without an address
+    };
+
+    let route_type_str = recipient.attribute("type").unwrap_or("node");
+    let route_type = if route_type_str.eq_ignore_ascii_case("lnaddress") {
+        RouteType::Lnaddress
+    } else {
+        // Default to Node (Sprint 5 fix: was incorrectly "lightning")
+        RouteType::Node
+    };
+
+    let split = recipient
+        .attribute("split")
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
+
+    let fee = recipient
+        .attribute("fee")
+        .is_some_and(|f| f.eq_ignore_ascii_case("true") || f == "1");
+
+    Some(IngestPaymentRoute {
+        recipient_name: recipient.attribute("name").map(String::from),
+        route_type,
+        address,
+        custom_key: recipient.attribute("customKey").map(String::from),
+        custom_value: recipient.attribute("customValue").map(String::from),
+        split,
+        fee,
+    })
+}
+
 /// Extracts `podcast:value > podcast:valueRecipient` payment routes from a node.
 fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
     let mut routes = Vec::new();
@@ -603,37 +642,9 @@ fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
                 && n.tag_name().name() == "valueRecipient"
                 && is_podcast_namespace(n.tag_name().namespace())
         }) {
-            let address = match recipient.attribute("address") {
-                Some(a) if !a.trim().is_empty() => a.trim().to_owned(),
-                _ => continue, // Skip recipients without an address
-            };
-
-            let route_type_str = recipient.attribute("type").unwrap_or("node");
-            let route_type = if route_type_str.eq_ignore_ascii_case("lnaddress") {
-                RouteType::Lnaddress
-            } else {
-                // Default to Node (Sprint 5 fix: was incorrectly "lightning")
-                RouteType::Node
-            };
-
-            let split = recipient
-                .attribute("split")
-                .and_then(|s| s.parse::<i64>().ok())
-                .unwrap_or(0);
-
-            let fee = recipient
-                .attribute("fee")
-                .is_some_and(|f| f.eq_ignore_ascii_case("true") || f == "1");
-
-            routes.push(IngestPaymentRoute {
-                recipient_name: recipient.attribute("name").map(String::from),
-                route_type,
-                address,
-                custom_key: recipient.attribute("customKey").map(String::from),
-                custom_value: recipient.attribute("customValue").map(String::from),
-                split,
-                fee,
-            });
+            if let Some(route) = read_payment_recipient(&recipient) {
+                routes.push(route);
+            }
         }
     }
 
@@ -669,7 +680,32 @@ fn extract_blocks(channel: &roxmltree::Node) -> Vec<IngestBlockTag> {
     blocks
 }
 
-/// Extracts `podcast:valueTimeSplit` entries with `podcast:remoteItem` children.
+/// Parses an attribute as a finite number. A missing or unreadable attribute
+/// gives `None`.
+fn parse_finite_f64_attribute(node: &roxmltree::Node, name: &str) -> Option<f64> {
+    node.attribute(name)
+        .and_then(|s| s.parse::<f64>().ok())
+        .filter(|v| v.is_finite())
+}
+
+/// Extracts each `podcast:valueTimeSplit` that the specification permits, in
+/// the remote form and the local form (stophammer ADR 0073 §1).
+///
+/// The parser ignores the non-spec `split` attribute on the element. The
+/// rules apply in this order:
+///
+/// 1. `startTime` must parse as a finite number of 0 or more. Else drop.
+/// 2. Count the `podcast:remoteItem` and `podcast:valueRecipient` children.
+///    Children of both kinds, two or more `remoteItem`, or no child: drop.
+/// 3. Remote form: `feedGuid` must be non-empty after trim. Else drop.
+///    `itemGuid` is optional.
+/// 4. Local form: read each recipient with the rule of a track payment
+///    route. If no recipient stays, drop.
+/// 5. `remotePercentage`: absent gives `None`. A value that does not parse
+///    as a finite number drops the split. The stated number is kept with no
+///    limit.
+/// 6. `duration` and `remoteStartTime`: a value that does not parse as a
+///    finite number gives `None`.
 fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit> {
     let mut splits = Vec::new();
 
@@ -683,54 +719,105 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
                 && n.tag_name().name() == "valueTimeSplit"
                 && is_podcast_namespace(n.tag_name().namespace())
         }) {
-            // Skip if remotePercentage is present
-            if vts.attribute("remotePercentage").is_some() {
-                continue;
-            }
-
-            let Some(start_time_secs) = vts
-                .attribute("startTime")
-                .and_then(|s| s.parse::<i64>().ok())
+            // Rule 1: startTime must be a finite number of 0 or more.
+            let Some(start_time_secs) =
+                parse_finite_f64_attribute(&vts, "startTime").filter(|v| *v >= 0.0)
             else {
                 continue;
             };
 
-            let duration_secs = vts
-                .attribute("duration")
-                .and_then(|s| s.parse::<i64>().ok());
+            let remote_items: Vec<_> = vts
+                .children()
+                .filter(|n| {
+                    n.is_element()
+                        && n.tag_name().name() == "remoteItem"
+                        && is_podcast_namespace(n.tag_name().namespace())
+                })
+                .collect();
+            let recipient_nodes: Vec<_> = vts
+                .children()
+                .filter(|n| {
+                    n.is_element()
+                        && n.tag_name().name() == "valueRecipient"
+                        && is_podcast_namespace(n.tag_name().namespace())
+                })
+                .collect();
 
-            let split = vts
-                .attribute("split")
-                .and_then(|s| s.parse::<i64>().ok())
-                .unwrap_or(0);
-
-            // Sprint 5 fix: read GUIDs from podcast:remoteItem *child element*
-            let remote_item = vts.children().find(|n| {
-                n.is_element()
-                    && n.tag_name().name() == "remoteItem"
-                    && is_podcast_namespace(n.tag_name().namespace())
-            });
-
-            let Some(remote) = remote_item else {
+            // Rule 2: one kind of child, and at most one remoteItem.
+            let has_remote_item = remote_items.len() == 1;
+            let has_recipients = !recipient_nodes.is_empty();
+            if remote_items.len() > 1 || (has_remote_item && has_recipients) {
                 continue;
+            }
+
+            let (form, remote_feed_guid, remote_item_guid, remote_start_time_secs, recipients) =
+                if has_remote_item {
+                    // Rule 3: the remote form needs a non-empty feedGuid.
+                    let remote = &remote_items[0];
+                    let Some(remote_feed_guid) = remote
+                        .attribute("feedGuid")
+                        .map(str::trim)
+                        .filter(|g| !g.is_empty())
+                        .map(str::to_owned)
+                    else {
+                        continue;
+                    };
+
+                    let remote_item_guid = remote
+                        .attribute("itemGuid")
+                        .map(str::trim)
+                        .filter(|g| !g.is_empty())
+                        .map(str::to_owned);
+
+                    // Rule 6: remoteStartTime gives None when it does not parse.
+                    let remote_start_time_secs =
+                        parse_finite_f64_attribute(&vts, "remoteStartTime");
+
+                    (
+                        ValueTimeSplitForm::Remote,
+                        Some(remote_feed_guid),
+                        remote_item_guid,
+                        remote_start_time_secs,
+                        Vec::new(),
+                    )
+                } else if has_recipients {
+                    // Rule 4: the local form needs at least one kept recipient.
+                    let recipients: Vec<IngestPaymentRoute> = recipient_nodes
+                        .iter()
+                        .filter_map(read_payment_recipient)
+                        .collect();
+                    if recipients.is_empty() {
+                        continue;
+                    }
+
+                    (ValueTimeSplitForm::Local, None, None, None, recipients)
+                } else {
+                    // Rule 2: no child of either kind.
+                    continue;
+                };
+
+            // Rule 5: remotePercentage drops the split when stated but
+            // unreadable. The stated number is kept with no limit.
+            let remote_percentage = match vts.attribute("remotePercentage") {
+                None => None,
+                Some(raw) => match raw.parse::<f64>().ok().filter(|v| v.is_finite()) {
+                    Some(value) => Some(value),
+                    None => continue,
+                },
             };
 
-            let remote_feed_guid = match remote.attribute("feedGuid") {
-                Some(g) if !g.trim().is_empty() => g.trim().to_owned(),
-                _ => continue,
-            };
-
-            let remote_item_guid = match remote.attribute("itemGuid") {
-                Some(g) if !g.trim().is_empty() => g.trim().to_owned(),
-                _ => continue,
-            };
+            // Rule 6: duration gives None when it does not parse.
+            let duration_secs = parse_finite_f64_attribute(&vts, "duration");
 
             splits.push(IngestValueTimeSplit {
+                form,
                 start_time_secs,
                 duration_secs,
                 remote_feed_guid,
                 remote_item_guid,
-                split,
+                remote_start_time_secs,
+                remote_percentage,
+                recipients,
             });
         }
     }
