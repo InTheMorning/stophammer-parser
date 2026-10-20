@@ -34,20 +34,6 @@ pub fn stophammer() -> FeedParser {
         .build()
 }
 
-/// Full stophammer parser with a fallback GUID.
-///
-/// Used by the importer when the `PodcastIndex` database provides a GUID
-/// for feeds that lack `podcast:guid`.
-#[must_use]
-pub fn stophammer_with_fallback(guid: String) -> FeedParser {
-    FeedParser::builder()
-        .all_phases()
-        .feed_rule(feed_rules())
-        .track_rule(track_rules())
-        .fallback_guid(guid)
-        .build()
-}
-
 /// Minimal parser — RSS 2.0 core and Phase 1 only.
 ///
 /// Useful for testing or lightweight extraction where iTunes and payment
@@ -62,18 +48,7 @@ pub fn minimal() -> FeedParser {
         .build()
 }
 
-/// Full stophammer parser with a fallback GUID and custom phase set.
-#[must_use]
-pub fn stophammer_with_phases(guid: String, phases: &[Phase]) -> FeedParser {
-    FeedParser::builder()
-        .phases(phases)
-        .fallback_guid(guid)
-        .feed_rule(feed_rules())
-        .track_rule(track_rules())
-        .build()
-}
-
-/// Full stophammer parser with custom phase set (no fallback GUID).
+/// Full stophammer parser with a custom phase set.
 #[must_use]
 pub fn stophammer_phases_only(phases: &[Phase]) -> FeedParser {
     FeedParser::builder()

@@ -160,7 +160,7 @@ fn missing_title_errors() {
 }
 
 #[test]
-fn missing_guid_errors_without_fallback() {
+fn missing_guid_is_an_error() {
     let xml = include_str!("fixtures/no_guid.xml");
 
     let parser = profile::stophammer();
@@ -187,15 +187,6 @@ fn missing_guid_errors_give_raw_medium() {
     assert!(err.has_channel());
     assert_eq!(err.raw_medium(), Some("music"));
     assert_eq!(err.to_string(), "missing podcast:guid");
-}
-
-#[test]
-fn fallback_guid_works() {
-    let xml = include_str!("fixtures/no_guid.xml");
-
-    let parser = profile::stophammer_with_fallback("fallback-123".into());
-    let feed = parser.parse(xml).unwrap();
-    assert_eq!(feed.feed_guid, "fallback-123");
 }
 
 #[test]

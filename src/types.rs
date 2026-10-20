@@ -15,7 +15,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct IngestFeedData {
-    /// Podcast GUID from `podcast:guid` or fallback.
+    /// Podcast GUID from `podcast:guid`.
     pub feed_guid: String,
     /// Feed title from `<title>`.
     pub title: String,

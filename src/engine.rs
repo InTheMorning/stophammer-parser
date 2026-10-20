@@ -55,7 +55,6 @@ const ATOM_NS: &str = "http://www.w3.org/2005/Atom";
 pub struct FeedParser {
     pub(crate) feed_rules: Vec<Rule>,
     pub(crate) track_rules: Vec<Rule>,
-    pub(crate) fallback_guid: Option<String>,
     pub(crate) phases: HashSet<Phase>,
 }
 
@@ -65,7 +64,6 @@ impl FeedParser {
     pub fn builder() -> ParserBuilder {
         ParserBuilder {
             phases: HashSet::new(),
-            fallback_guid: None,
             feed_rules: Vec::new(),
             track_rules: Vec::new(),
         }
@@ -79,7 +77,7 @@ impl FeedParser {
     /// - The XML is malformed
     /// - No `<channel>` element is found
     /// - The feed has no `<title>`
-    /// - The feed has no `podcast:guid` and no fallback was configured
+    /// - The feed has no `podcast:guid`
     pub fn parse(&self, xml: &str) -> Result<IngestFeedData, ParseError> {
         let doc = roxmltree::Document::parse(xml)?;
         let root = doc.root_element();
@@ -105,13 +103,6 @@ impl FeedParser {
                     feed.set(field, result);
                 }
             }
-        }
-
-        // Apply fallback guid
-        if feed.feed_guid.is_none()
-            && let Some(ref fallback) = self.fallback_guid
-        {
-            feed.feed_guid = Some(fallback.clone());
         }
 
         // Extract feed-level payment routes (Phase2)
@@ -425,7 +416,6 @@ pub fn extract_podcast_namespace(
 /// Builder for configuring a [`FeedParser`].
 pub struct ParserBuilder {
     pub(crate) phases: HashSet<Phase>,
-    pub(crate) fallback_guid: Option<String>,
     pub(crate) feed_rules: Vec<Rule>,
     pub(crate) track_rules: Vec<Rule>,
 }
@@ -456,13 +446,6 @@ impl ParserBuilder {
         self
     }
 
-    /// Sets a fallback GUID for feeds that lack `podcast:guid`.
-    #[must_use]
-    pub fn fallback_guid(mut self, guid: impl Into<String>) -> Self {
-        self.fallback_guid = Some(guid.into());
-        self
-    }
-
     /// Adds a single extraction rule, routed to feed or track rules
     /// based on its target.
     #[must_use]
@@ -480,7 +463,6 @@ impl ParserBuilder {
         FeedParser {
             feed_rules: self.feed_rules,
             track_rules: self.track_rules,
-            fallback_guid: self.fallback_guid,
             phases: self.phases,
         }
     }

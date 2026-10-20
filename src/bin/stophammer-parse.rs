@@ -14,25 +14,15 @@ use stophammer_parser::profile;
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
 
-    let mut fallback_guid: Option<String> = None;
     let mut phase_filter: Option<Vec<Phase>> = None;
 
     let mut i = 1;
     while i < args.len() {
-        match args[i].as_str() {
-            "--fallback-guid" => {
-                i += 1;
-                if i < args.len() {
-                    fallback_guid = Some(args[i].clone());
-                }
+        if args[i] == "--phases" {
+            i += 1;
+            if i < args.len() {
+                phase_filter = Some(parse_phases(&args[i]));
             }
-            "--phases" => {
-                i += 1;
-                if i < args.len() {
-                    phase_filter = Some(parse_phases(&args[i]));
-                }
-            }
-            _ => {}
         }
         i += 1;
     }
@@ -48,11 +38,9 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     }
 
-    let parser = match (fallback_guid, phase_filter) {
-        (Some(guid), Some(phases)) => profile::stophammer_with_phases(guid, &phases),
-        (Some(guid), None) => profile::stophammer_with_fallback(guid),
-        (None, Some(phases)) => profile::stophammer_phases_only(&phases),
-        (None, None) => profile::stophammer(),
+    let parser = match phase_filter {
+        Some(phases) => profile::stophammer_phases_only(&phases),
+        None => profile::stophammer(),
     };
 
     match parser.parse(&xml) {
