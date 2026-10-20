@@ -137,12 +137,19 @@ impl FeedParser {
         let tracks = self.parse_items(&channel, &feed);
         let live_items = self.parse_live_items(&channel, &feed);
 
-        // Validate required fields
-        let title = feed.title.ok_or(ParseError {
-            kind: ErrorKind::NoTitle,
+        // Validate required fields. Clone `raw_medium` first: ADR 0074 §3a
+        // needs it in the error, and `IngestFeedData` below still needs the
+        // field on `feed`.
+        let raw_medium_for_error = feed.raw_medium.clone();
+        let title = feed.title.ok_or_else(|| ParseError {
+            kind: ErrorKind::NoTitle {
+                raw_medium: raw_medium_for_error.clone(),
+            },
         })?;
         let feed_guid = feed.feed_guid.ok_or(ParseError {
-            kind: ErrorKind::NoGuid,
+            kind: ErrorKind::NoGuid {
+                raw_medium: raw_medium_for_error,
+            },
         })?;
 
         Ok(IngestFeedData {

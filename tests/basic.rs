@@ -147,12 +147,16 @@ fn missing_title_errors() {
     <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
       <channel>
         <podcast:guid>guid</podcast:guid>
+        <podcast:medium>podcast</podcast:medium>
       </channel>
     </rss>"#;
 
     let parser = profile::stophammer();
     let err = parser.parse(xml).unwrap_err();
     assert!(err.is_missing_field());
+    assert!(err.has_channel());
+    assert_eq!(err.raw_medium(), Some("podcast"));
+    assert_eq!(err.to_string(), "missing <title> element");
 }
 
 #[test]
@@ -162,6 +166,27 @@ fn missing_guid_errors_without_fallback() {
     let parser = profile::stophammer();
     let err = parser.parse(xml).unwrap_err();
     assert!(err.is_missing_field());
+    assert!(err.has_channel());
+    assert_eq!(err.raw_medium(), None);
+    assert_eq!(err.to_string(), "missing podcast:guid");
+}
+
+#[test]
+fn missing_guid_errors_give_raw_medium() {
+    let xml = r#"<?xml version="1.0"?>
+    <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+      <channel>
+        <title>Music Feed</title>
+        <podcast:medium>music</podcast:medium>
+      </channel>
+    </rss>"#;
+
+    let parser = profile::stophammer();
+    let err = parser.parse(xml).unwrap_err();
+    assert!(err.is_missing_field());
+    assert!(err.has_channel());
+    assert_eq!(err.raw_medium(), Some("music"));
+    assert_eq!(err.to_string(), "missing podcast:guid");
 }
 
 #[test]
@@ -178,6 +203,8 @@ fn malformed_xml_errors() {
     let parser = profile::stophammer();
     let err = parser.parse("<not xml").unwrap_err();
     assert!(err.is_xml());
+    assert!(!err.has_channel());
+    assert_eq!(err.raw_medium(), None);
 }
 
 #[test]
@@ -186,6 +213,8 @@ fn no_channel_errors() {
     let parser = profile::stophammer();
     let err = parser.parse(xml).unwrap_err();
     assert!(err.is_missing_field());
+    assert!(!err.has_channel());
+    assert_eq!(err.raw_medium(), None);
 }
 
 #[test]
