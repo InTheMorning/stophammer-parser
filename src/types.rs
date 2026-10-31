@@ -251,6 +251,13 @@ pub struct IngestLink {
     pub link_type: String,
     /// Raw URL value.
     pub url: String,
+    /// Display text of the link, from the node value (ADR 0082 §2).
+    /// It is `None` for each link type except `funding`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub label: Option<String>,
     /// Source extraction path within the feed.
     #[cfg_attr(feature = "serde", serde(default))]
     pub extraction_path: String,

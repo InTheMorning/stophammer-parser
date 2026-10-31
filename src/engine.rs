@@ -1073,6 +1073,12 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             {
                 Some(("web_page", "entity.atom:link[@rel='alternate']"))
             }
+            (ns, "funding", "feed") if is_podcast_namespace(ns) => {
+                Some(("funding", "feed.podcast:funding"))
+            }
+            (ns, "funding", _) if is_podcast_namespace(ns) => {
+                Some(("funding", "entity.podcast:funding"))
+            }
             _ => None,
         };
 
@@ -1080,7 +1086,13 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             continue;
         };
 
-        let url = if child.tag_name().namespace() == Some(ATOM_NS) {
+        let url = if link_type == "funding" {
+            child
+                .attribute("url")
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned)
+        } else if child.tag_name().namespace() == Some(ATOM_NS) {
             child
                 .attribute("href")
                 .map(str::trim)
@@ -1094,10 +1106,18 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
 
         let Some(url) = url else { continue };
 
+        // ADR 0082 §1: only a funding tag has a label.
+        let label = if link_type == "funding" {
+            child_text(&child)
+        } else {
+            None
+        };
+
         links.push(IngestLink {
             position: usize_to_i64(links.len()),
             link_type: link_type.to_owned(),
             url,
+            label,
             extraction_path: extraction_path.to_owned(),
         });
     }
@@ -1110,6 +1130,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             position: usize_to_i64(links.len()),
             link_type: "content_stream".to_owned(),
             url: content_link.to_owned(),
+            label: None,
             extraction_path: "live_item.@contentLink".to_owned(),
         });
     }
