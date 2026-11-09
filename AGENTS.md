@@ -21,6 +21,10 @@ path, so the two commits go together.
 no rule lets that element supply a release date. `src/profile.rs:183` is the
 rule.
 
+`stophammer` ADR 0093 is Accepted, and this crate carries it. A live item
+reads each `podcast:contentLink` child element into a `content_link` link with
+a label. `content_link` is the first `href`. It is not the enclosure URL.
+
 ## What Is True Here
 
 - **The engine keeps the first value.** `src/engine.rs:98` and `:364` hold

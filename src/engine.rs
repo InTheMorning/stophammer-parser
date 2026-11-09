@@ -320,10 +320,12 @@ impl FeedParser {
             Vec::new()
         };
 
-        let content_link = live_item
-            .attribute("contentLink")
-            .map(str::to_owned)
-            .or_else(|| track.enclosure_url.clone());
+        // ADR 0093 §1: the first `podcast:contentLink` child element gives
+        // the value. The enclosure is the stream and does not fill it.
+        let content_link = links
+            .iter()
+            .find(|link| link.link_type == "content_link")
+            .map(|link| link.url.clone());
 
         let (live_value_uri, live_value_protocol) = extract_live_value(live_item);
 
@@ -1079,6 +1081,9 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             (ns, "funding", _) if is_podcast_namespace(ns) => {
                 Some(("funding", "entity.podcast:funding"))
             }
+            (ns, "contentLink", "live_item") if is_podcast_namespace(ns) => {
+                Some(("content_link", "live_item.podcast:contentLink"))
+            }
             _ => None,
         };
 
@@ -1092,7 +1097,7 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
                 .map(str::to_owned)
-        } else if child.tag_name().namespace() == Some(ATOM_NS) {
+        } else if child.tag_name().namespace() == Some(ATOM_NS) || link_type == "content_link" {
             child
                 .attribute("href")
                 .map(str::trim)
@@ -1106,8 +1111,9 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
 
         let Some(url) = url else { continue };
 
-        // ADR 0082 §1: only a funding tag has a label.
-        let label = if link_type == "funding" {
+        // ADR 0082 §1 and ADR 0093 §2: a funding tag and a content link
+        // have a label.
+        let label = if matches!(link_type, "funding" | "content_link") {
             child_text(&child)
         } else {
             None
@@ -1119,19 +1125,6 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
             url,
             label,
             extraction_path: extraction_path.to_owned(),
-        });
-    }
-
-    if entity_type == "live_item"
-        && let Some(content_link) = node.attribute("contentLink").map(str::trim)
-        && !content_link.is_empty()
-    {
-        links.push(IngestLink {
-            position: usize_to_i64(links.len()),
-            link_type: "content_stream".to_owned(),
-            url: content_link.to_owned(),
-            label: None,
-            extraction_path: "live_item.@contentLink".to_owned(),
         });
     }
 

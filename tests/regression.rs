@@ -418,10 +418,13 @@ fn live_item_is_extracted_separately_from_tracks() {
     assert_eq!(feed.live_items[0].status, "live");
     assert_eq!(feed.live_items[0].start_at, Some(1_773_705_600));
     assert_eq!(feed.live_items[0].end_at, Some(1_773_709_200));
+    // ADR 0093 §1 and §3: the stream stays in enclosure_url and does not
+    // fill content_link.
     assert_eq!(
-        feed.live_items[0].content_link.as_deref(),
+        feed.live_items[0].enclosure_url.as_deref(),
         Some("https://stream.example.com/live.mp3")
     );
+    assert_eq!(feed.live_items[0].content_link, None);
 }
 
 #[test]
@@ -588,10 +591,11 @@ fn feed_track_and_live_item_links_are_extracted() {
           <link>https://example.com/song</link>
           <atom:link rel="alternate" href="https://example.com/song-home" type="text/html" />
         </item>
-        <podcast:liveItem status="live" contentLink="https://stream.example.com/live.mp3">
+        <podcast:liveItem status="live">
           <guid>live-guid-1</guid>
           <title>Live Show</title>
           <atom:link rel="alternate" href="https://example.com/live-show" type="text/html" />
+          <podcast:contentLink href="https://example.com/live-page">Watch</podcast:contentLink>
         </podcast:liveItem>
       </channel>
     </rss>"#;
@@ -633,14 +637,15 @@ fn feed_track_and_live_item_links_are_extracted() {
         feed.live_items[0].links[0].extraction_path,
         "entity.atom:link[@rel='alternate']"
     );
-    assert_eq!(feed.live_items[0].links[1].link_type, "content_stream");
+    // ADR 0093 §2: a podcast:contentLink child element is a link.
+    assert_eq!(feed.live_items[0].links[1].link_type, "content_link");
     assert_eq!(
         feed.live_items[0].links[1].url,
-        "https://stream.example.com/live.mp3"
+        "https://example.com/live-page"
     );
     assert_eq!(
         feed.live_items[0].links[1].extraction_path,
-        "live_item.@contentLink"
+        "live_item.podcast:contentLink"
     );
 }
 

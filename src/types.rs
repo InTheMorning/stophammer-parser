@@ -314,7 +314,8 @@ pub struct IngestLiveItemData {
     pub start_at: Option<i64>,
     /// Scheduled or actual end time as Unix seconds.
     pub end_at: Option<i64>,
-    /// Content/live stream URL if present.
+    /// The `href` of the first `podcast:contentLink` child element (ADR 0093).
+    /// It is not the enclosure URL.
     pub content_link: Option<String>,
     /// Publication date as Unix seconds.
     pub pub_date: Option<i64>,

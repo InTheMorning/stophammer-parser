@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+  <channel>
+    <atom:link href="https://zine.bitpunk.fm/feeds/live.xml" rel="self" type="application/rss+xml"></atom:link>
+
+    <lastBuildDate>Fri, 25 Jul 2025 11:56:56 -0600</lastBuildDate>
+    <docs>https://cyber.harvard.edu/rss/rss.html</docs>
+    <podcast:guid>b45af779-56a9-57d8-8b4f-a71170b4b46a</podcast:guid>
+    <title>bitpunk.fm live</title>
+    <description><![CDATA[<p>Live streams of bitpunk.fm, for poetry, music, and cassettes.</p>]]></description><podcast:medium>podcast</podcast:medium>
+    <itunes:image href="https://files.bitpunk.fm/live_pod_cover.png"></itunes:image>
+    <language>en</language>
+    <podcast:locked owner="livebitboss@bitpunk.fm">yes</podcast:locked>
+    <itunes:category text="Technology"></itunes:category><category>Technology</category>
+    <itunes:category text="Arts"></itunes:category><category>Arts</category>
+    <itunes:category text="Music"></itunes:category><category>Music</category>
+    <itunes:explicit>true</itunes:explicit>
+    <itunes:author>bitpunk.fm</itunes:author>
+    <link>https://www.bitpunk.fm/@bitpunkfm</link>
+    <generator>Emacs and a stiff drink</generator>
+    <podcast:publisher>
+        <podcast:remoteItem medium="publisher" feedGuid="5883e6be-4e0c-11f0-9524-00155dc57d8e" feedUrl="https://zine.bitpunk.fm/feeds/publisher.xml"/>
+    </podcast:publisher>
+    <itunes:owner>
+      <itunes:name>Josh Datko</itunes:name>
+      <itunes:email>livebitboss@bitpunk.fm</itunes:email>
+    </itunes:owner>
+    <itunes:type>episodic</itunes:type>
+    <copyright>bitpunk.fm</copyright>
+    <podcast:isShillingHardwareWallet>no</podcast:isShillingHardwareWallet>
+
+
+    <podcast:funding url="https://zine.bitpunk.fm/support/">Support the show!</podcast:funding>
+
+    <podcast:liveItem status="pending" start="2025-07-04T10:00:00-0600" end="2025-07-04T11:00:00-0600">
+      <title>Poetry on Tape</title>
+      <description>Live read and performed poetry</description>
+      <guid isPermaLink="false">Episode-1</guid>
+      <enclosure url="https://customer-t35yra9mwp9qe3jn.cloudflarestream.com/0bb6fd3739e0b81e8f7641d393f6401b/manifest/video.m3u8" type="application/x-mpegURL" length="5242880" />
+      <podcast:contentLink href="https://zine.bitpunk.fm/live">Listen Live!</podcast:contentLink>
+      <podcast:value type="lightning" method="keysend">
+        <podcast:valueRecipient name="Host" type="node" address="0271582af8fedc9354acedec65874ea119c2f14aea7ae462d773bbf8b18269fe60" split="99"/>
+        <podcast:valueRecipient name="boostbot@fountain.fm" type="node" address="03b6f613e88bd874177c28c6ad83b3baba43c4c656f56be1f8df84669556054b79" customKey="906608" customValue="01IMQkt4BFzAiSynxcQQqd" split="1"/>
+      </podcast:value>
+    </podcast:liveItem>
+
+
+
+
+    <item>
+    <title>Bitpunk.fm Live Teaser</title>
+    <enclosure url="https://files.bitpunk.fm/bitpunk_fm_live_teaser.mp3" length="57606300" type="audio/mpeg"/>
+    <guid>
+        https://live.bitpunk.fm/media/bitpunk_fm_live_teaser.mp3
+    </guid>
+    <pubDate>Wed, 04 Sep 2024 14:55:02 +0000</pubDate>
+    <description><![CDATA[<p>What is bitpunk.fm all about?!</p><p>&nbsp;</p>]]></description>
+
+    <itunes:duration>30</itunes:duration>
+    <link>
+        https://files.bitpunk.fm/bitpunk_fm_live_teaser.mp3
+    </link>
+    <itunes:explicit>true</itunes:explicit>
+
+    <podcast:value type="lightning" method="keysend">
+        <podcast:valueRecipient name="Host" type="node" address="0271582af8fedc9354acedec65874ea119c2f14aea7ae462d773bbf8b18269fe60" split="87"/>
+        <podcast:valueRecipient name="marykateultra@fountain.fm" type="node" address="03b6f613e88bd874177c28c6ad83b3baba43c4c656f56be1f8df84669556054b79" customKey="906608" customValue="01vI2zSit4cEphEcc8ciDS" split="4"/>
+        <podcast:valueRecipient name="ChadF" type="node" address="032870511bfa0309bab3ca1832ead69eed848a4abddbc4d50e55bb2157f9525e51" split="2"/>
+        <podcast:valueRecipient name="DuhLaurien" type="node" address="0368fed1c2fc35393228091c3ed1558090bfefc2ba5f57d8e025784f7fbc705dd5" split="2"/>
+        <podcast:valueRecipient name="Spencer" address="03ecb3ee55ba6324d40bea174de096dc9134cb35d990235723b37ae9b5c49f4f53" split="2" type="node"/>
+        <podcast:valueRecipient name="ThunderRoad" type="node" address="03589f3ddb81f3802f3fc9aaa359b684ed19840b55db88f7c9c2cc671e74ac93e2" split="2"/>
+        <podcast:valueRecipient name="voidzero" type="node" address="03c3a201d80404eebf323384c0406d67290d7540e89e24ce4ceaf2f3c2ada2c209" split="1"/>
+    </podcast:value>
+
+
+</item>
+
+
+  </channel>
+</rss>
