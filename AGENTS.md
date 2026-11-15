@@ -25,6 +25,12 @@ rule.
 reads each `podcast:contentLink` child element into a `content_link` link with
 a label. `content_link` is the first `href`. It is not the enclosure URL.
 
+`stophammer` ADR 0098 is Accepted, and this crate carries its §1 to §3. Each
+payment route and each value time split has the `value_type`, the
+`value_method` and the `block_index` of its `podcast:value` block.
+`RouteType::Other` holds each recipient `type` that is not `node` or
+`lnaddress`. No release holds this change.
+
 ## What Is True Here
 
 - **The engine keeps the first value.** `src/engine.rs:98` and `:364` hold

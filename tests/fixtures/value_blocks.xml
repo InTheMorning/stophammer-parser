@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Value Blocks</title>
+    <podcast:guid>value-block-feed</podcast:guid>
+    <podcast:value>
+      <podcast:valueRecipient name="Lightning" address="node-key" />
+    </podcast:value>
+    <podcast:value type=" USDC " method=" EIP3009 ">
+      <podcast:valueRecipient name="USDC" type="address" address="eip155:8453:0x1234567890abcdef" />
+    </podcast:value>
+    <item>
+      <guid>track-guid</guid>
+      <title>Track</title>
+      <podcast:value type="USDC" method=" EIP3009 ">
+        <podcast:valueRecipient name="Track" address="track-key" />
+        <podcast:valueTimeSplit startTime="10">
+          <podcast:valueRecipient name="Local" type="address" address="eip155:8453:0xabcdef" />
+        </podcast:valueTimeSplit>
+      </podcast:value>
+    </item>
+  </channel>
+</rss>

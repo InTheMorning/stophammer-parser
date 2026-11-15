@@ -27,9 +27,9 @@ fn route_type_defaults_to_node() {
     assert_eq!(feed.tracks[0].payment_routes[0].route_type, RouteType::Node);
 }
 
-/// Sprint 5 Bug 1b: unknown type values also default to node.
+/// An unknown recipient type keeps its normalized text.
 #[test]
-fn unknown_route_type_defaults_to_node() {
+fn unknown_route_type_is_preserved() {
     let xml = r#"<?xml version="1.0"?>
     <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
       <channel>
@@ -47,8 +47,10 @@ fn unknown_route_type_defaults_to_node() {
 
     let parser = profile::stophammer();
     let feed = parser.parse(xml).unwrap();
-    // "lightning" is not "lnaddress", so it defaults to Node
-    assert_eq!(feed.tracks[0].payment_routes[0].route_type, RouteType::Node);
+    assert_eq!(
+        feed.tracks[0].payment_routes[0].route_type,
+        RouteType::Other("lightning".to_owned())
+    );
 }
 
 /// Sprint 5 Bug 2: VTS reads remote GUIDs from podcast:remoteItem child element,

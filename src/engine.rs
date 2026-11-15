@@ -596,18 +596,26 @@ fn extract_live_value(node: &roxmltree::Node) -> (Option<String>, Option<String>
 /// A track payment route and a local-form value time split recipient
 /// (stophammer ADR 0073 §1) use this same rule. A recipient with no address,
 /// or an empty address, gives no route.
-fn read_payment_recipient(recipient: &roxmltree::Node) -> Option<IngestPaymentRoute> {
+fn read_payment_recipient(
+    recipient: &roxmltree::Node,
+    value_type: &str,
+    value_method: Option<&str>,
+    block_index: u32,
+) -> Option<IngestPaymentRoute> {
     let address = match recipient.attribute("address") {
         Some(a) if !a.trim().is_empty() => a.trim().to_owned(),
         _ => return None, // Skip recipients without an address
     };
 
-    let route_type_str = recipient.attribute("type").unwrap_or("node");
-    let route_type = if route_type_str.eq_ignore_ascii_case("lnaddress") {
-        RouteType::Lnaddress
-    } else {
-        // Default to Node (Sprint 5 fix: was incorrectly "lightning")
-        RouteType::Node
+    let route_type_str = recipient
+        .attribute("type")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_ascii_lowercase);
+    let route_type = match route_type_str.as_deref() {
+        None | Some("node") => RouteType::Node,
+        Some("lnaddress") => RouteType::Lnaddress,
+        Some(value) => RouteType::Other(value.to_owned()),
     };
 
     let split = recipient
@@ -620,6 +628,9 @@ fn read_payment_recipient(recipient: &roxmltree::Node) -> Option<IngestPaymentRo
         .is_some_and(|f| f.eq_ignore_ascii_case("true") || f == "1");
 
     Some(IngestPaymentRoute {
+        value_type: value_type.to_owned(),
+        value_method: value_method.map(str::to_owned),
+        block_index,
         recipient_name: recipient.attribute("name").map(String::from),
         route_type,
         address,
@@ -634,17 +645,29 @@ fn read_payment_recipient(recipient: &roxmltree::Node) -> Option<IngestPaymentRo
 fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
     let mut routes = Vec::new();
 
-    for value_node in node.children().filter(|n| {
-        n.is_element()
-            && n.tag_name().name() == "value"
-            && is_podcast_namespace(n.tag_name().namespace())
-    }) {
+    for (block_position, value_node) in node
+        .children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "value"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .enumerate()
+    {
+        let block_index = u32::try_from(block_position).unwrap_or(u32::MAX);
+        let value_type = normalized_attribute(&value_node, "type", "lightning");
+        let value_method = normalized_optional_attribute(&value_node, "method");
         for recipient in value_node.children().filter(|n| {
             n.is_element()
                 && n.tag_name().name() == "valueRecipient"
                 && is_podcast_namespace(n.tag_name().namespace())
         }) {
-            if let Some(route) = read_payment_recipient(&recipient) {
+            if let Some(route) = read_payment_recipient(
+                &recipient,
+                &value_type,
+                value_method.as_deref(),
+                block_index,
+            ) {
                 routes.push(route);
             }
         }
@@ -690,6 +713,20 @@ fn parse_finite_f64_attribute(node: &roxmltree::Node, name: &str) -> Option<f64>
         .filter(|v| v.is_finite())
 }
 
+fn normalized_attribute(node: &roxmltree::Node, name: &str, default: &str) -> String {
+    node.attribute(name)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map_or_else(|| default.to_owned(), str::to_ascii_lowercase)
+}
+
+fn normalized_optional_attribute(node: &roxmltree::Node, name: &str) -> Option<String> {
+    node.attribute(name)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_ascii_lowercase)
+}
+
 /// Extracts each `podcast:valueTimeSplit` that the specification permits, in
 /// the remote form and the local form (stophammer ADR 0073 §1).
 ///
@@ -708,14 +745,25 @@ fn parse_finite_f64_attribute(node: &roxmltree::Node, name: &str) -> Option<f64>
 ///    limit.
 /// 6. `duration` and `remoteStartTime`: a value that does not parse as a
 ///    finite number gives `None`.
+#[expect(
+    clippy::too_many_lines,
+    reason = "This extraction keeps ordered value-block metadata with each split."
+)]
 fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit> {
     let mut splits = Vec::new();
 
-    for value_node in node.children().filter(|n| {
-        n.is_element()
-            && n.tag_name().name() == "value"
-            && is_podcast_namespace(n.tag_name().namespace())
-    }) {
+    for (block_position, value_node) in node
+        .children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "value"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .enumerate()
+    {
+        let block_index = u32::try_from(block_position).unwrap_or(u32::MAX);
+        let value_type = normalized_attribute(&value_node, "type", "lightning");
+        let value_method = normalized_optional_attribute(&value_node, "method");
         for vts in value_node.children().filter(|n| {
             n.is_element()
                 && n.tag_name().name() == "valueTimeSplit"
@@ -786,7 +834,14 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
                     // Rule 4: the local form needs at least one kept recipient.
                     let recipients: Vec<IngestPaymentRoute> = recipient_nodes
                         .iter()
-                        .filter_map(read_payment_recipient)
+                        .filter_map(|recipient| {
+                            read_payment_recipient(
+                                recipient,
+                                &value_type,
+                                value_method.as_deref(),
+                                block_index,
+                            )
+                        })
                         .collect();
                     if recipients.is_empty() {
                         continue;
@@ -812,6 +867,9 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
             let duration_secs = parse_finite_f64_attribute(&vts, "duration");
 
             splits.push(IngestValueTimeSplit {
+                value_type: value_type.clone(),
+                value_method: value_method.clone(),
+                block_index,
                 form,
                 start_time_secs,
                 duration_secs,

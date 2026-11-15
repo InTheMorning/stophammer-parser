@@ -393,6 +393,12 @@ pub struct IngestPodcastNamespaceTag {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct IngestPaymentRoute {
+    /// Type of the `podcast:value` block.
+    pub value_type: String,
+    /// Method of the `podcast:value` block.
+    pub value_method: Option<String>,
+    /// Position of the `podcast:value` block in its parent.
+    pub block_index: u32,
     /// Display name of the recipient.
     pub recipient_name: Option<String>,
     /// Route type: node or lnaddress.
@@ -428,6 +434,12 @@ pub enum ValueTimeSplitForm {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct IngestValueTimeSplit {
+    /// Type of the `podcast:value` block.
+    pub value_type: String,
+    /// Method of the `podcast:value` block.
+    pub value_method: Option<String>,
+    /// Position of the `podcast:value` block in its parent.
+    pub block_index: u32,
     /// The form of the split: remote or local.
     pub form: ValueTimeSplitForm,
     /// Start time in seconds from the start of playback. Can be a fraction.
@@ -447,13 +459,43 @@ pub struct IngestValueTimeSplit {
     pub recipients: Vec<IngestPaymentRoute>,
 }
 
-/// Lightning payment route type.
+/// Payment route type from a `podcast:valueRecipient` element.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum RouteType {
     /// Lightning network node (pubkey).
     Node,
     /// Lightning address (user@domain).
     Lnaddress,
+    /// Any other route type from the feed.
+    Other(String),
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for RouteType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let value = match self {
+            Self::Node => "node",
+            Self::Lnaddress => "lnaddress",
+            Self::Other(value) => value,
+        };
+        serializer.serialize_str(value)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for RouteType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(match value.as_str() {
+            "node" => Self::Node,
+            "lnaddress" => Self::Lnaddress,
+            _ => Self::Other(value),
+        })
+    }
 }
