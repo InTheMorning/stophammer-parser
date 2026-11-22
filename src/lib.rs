@@ -43,6 +43,7 @@ pub mod profile;
 pub mod rule;
 pub mod transform;
 pub mod types;
+pub mod web_link;
 
 pub use engine::{FeedParser, extract_podcast_namespace};
 pub use error::ParseError;
@@ -51,3 +52,4 @@ pub use types::{
     IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag,
     IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
 };
+pub use web_link::{web_link_for_read, web_url_or_none};

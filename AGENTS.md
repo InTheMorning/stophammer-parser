@@ -53,6 +53,10 @@ them.
   so an app can apply its own rule. This is the stophammer selection of
   R-FEED-2 item 3 for R-FEED-4 item 2.
 - `tests/adr0086_feed_read_tests.rs` holds the tests of R-FEED-2 to R-FEED-4.
+- `src/web_link.rs` holds `web_url_or_none` and `web_link_for_read`, the read
+  rules of `stophammer` ADR 0054 §4 and §4a (R-FEED-1 item 4). The parse
+  output stays raw. An app calls these functions when it shows or writes a
+  link. `tests/web_link.rs` holds their tests.
 
 ## What Is True Here
 
