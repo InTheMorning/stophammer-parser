@@ -12,13 +12,19 @@ use std::collections::HashMap;
 ///
 /// Contains all feed-level metadata, payment routes, and tracks
 /// extracted from an RSS/Podcast XML document.
+///
+/// `R` is the type of each required field (musicindex ADR 0086 R-FEED-2).
+/// [`FeedParser::read`](crate::FeedParser::read) gives
+/// [`FeedValues`], where `R` is `Option<String>` and no field is required.
+/// [`check::required_fields`](crate::check::required_fields) gives the
+/// default form, where `R` is `String`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct IngestFeedData {
-    /// Podcast GUID from `podcast:guid`.
-    pub feed_guid: String,
-    /// Feed title from `<title>`.
-    pub title: String,
+pub struct IngestFeedData<R = String> {
+    /// Podcast GUID from `podcast:guid`. A required field.
+    pub feed_guid: R,
+    /// Feed title from `<title>`. A required field.
+    pub title: R,
     /// Feed description, HTML-stripped.
     pub description: Option<String>,
     /// Image URL from `itunes:image`, `podcast:images`, or `<image><url>`.
@@ -92,10 +98,14 @@ pub struct IngestFeedData {
     /// Feed-level payment recipients (fallback at play time).
     pub feed_payment_routes: Vec<IngestPaymentRoute>,
     /// Parsed live items that have not yet been promoted to permanent tracks.
-    pub live_items: Vec<IngestLiveItemData>,
+    pub live_items: Vec<IngestLiveItemData<R>>,
     /// Parsed tracks (items) from the feed.
-    pub tracks: Vec<IngestTrackData>,
+    pub tracks: Vec<IngestTrackData<R>>,
 }
+
+/// The values of a feed before a required-field check (musicindex ADR 0086
+/// R-FEED-2). A missing required field is `None`.
+pub type FeedValues = IngestFeedData<Option<String>>;
 
 /// A channel-level `podcast:block` tag.
 ///
@@ -114,13 +124,15 @@ pub struct IngestBlockTag {
 }
 
 /// Parsed track (episode/item) data.
+///
+/// `R` is the type of each required field, as in [`IngestFeedData`].
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct IngestTrackData {
-    /// Track GUID from `<guid>`.
-    pub track_guid: String,
-    /// Track title.
-    pub title: String,
+pub struct IngestTrackData<R = String> {
+    /// Track GUID from `<guid>`. A required field.
+    pub track_guid: R,
+    /// Track title. A required field.
+    pub title: R,
     /// Publication date as Unix seconds.
     pub pub_date: Option<i64>,
     /// Duration in seconds.
@@ -301,15 +313,18 @@ pub struct IngestTranscript {
 }
 
 /// Parsed `podcast:liveItem` data.
+///
+/// `R` is the type of each required field, as in [`IngestFeedData`].
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct IngestLiveItemData {
-    /// Live item GUID from `<guid>`.
-    pub live_item_guid: String,
-    /// Live item title.
-    pub title: String,
-    /// Current live status (`pending`, `live`, `ended`).
-    pub status: String,
+pub struct IngestLiveItemData<R = String> {
+    /// Live item GUID from `<guid>`. A required field.
+    pub live_item_guid: R,
+    /// Live item title. A required field.
+    pub title: R,
+    /// Current live status (`pending`, `live`, `ended`), trimmed and in
+    /// lower case. A required field. An empty attribute is missing.
+    pub status: R,
     /// Scheduled or actual start time as Unix seconds.
     pub start_at: Option<i64>,
     /// Scheduled or actual end time as Unix seconds.
@@ -401,18 +416,107 @@ pub struct IngestPaymentRoute {
     pub block_index: u32,
     /// Display name of the recipient.
     pub recipient_name: Option<String>,
-    /// Route type: node or lnaddress.
+    /// The parsed form of `type`. A missing or empty `type` gives
+    /// [`RouteType::Node`].
     pub route_type: RouteType,
+    /// The `type` attribute as the feed gives it (musicindex ADR 0086
+    /// R-FEED-4). `None` when the attribute is missing.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub type_text: Option<String>,
     /// Lightning node pubkey or LN address.
     pub address: String,
     /// Custom TLV key.
     pub custom_key: Option<String>,
     /// Custom TLV value.
     pub custom_value: Option<String>,
-    /// Split weight (integer).
+    /// The parsed form of `split`. A missing value, or a value that is not
+    /// an integer, gives 0.
     pub split: i64,
-    /// When true, recipient is an app-fee destination.
+    /// The `split` attribute as the feed gives it (musicindex ADR 0086
+    /// R-FEED-4). `None` when the attribute is missing.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub split_text: Option<String>,
+    /// The parsed form of `fee`: `true` when the recipient is an app-fee
+    /// destination. [`FeeReading`] gives the rule.
     pub fee: bool,
+    /// The `fee` attribute as the feed gives it (musicindex ADR 0086
+    /// R-FEED-4). `None` when the attribute is missing.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub fee_text: Option<String>,
+}
+
+impl IngestPaymentRoute {
+    /// Returns `true` when `fee_text` is a value that the fee rule does not
+    /// know (musicindex ADR 0086 R-FEED-4 item 5). This is the warning of
+    /// that rule. The route stays in the result, and `fee` is `false`.
+    #[must_use]
+    pub fn fee_warning(&self) -> bool {
+        FeeReading::from_text(self.fee_text.as_deref()) == FeeReading::Unknown
+    }
+}
+
+/// The reading of a `fee` attribute (musicindex ADR 0086 R-FEED-4 item 5).
+///
+/// The rule removes the spaces at the two ends of the text and ignores the
+/// letter case.
+///
+/// ```
+/// use stophammer_parser::FeeReading;
+///
+/// assert_eq!(FeeReading::from_text(Some(" YES ")), FeeReading::Fee);
+/// assert_eq!(FeeReading::from_text(Some("")), FeeReading::NotFee);
+/// assert_eq!(FeeReading::from_text(None), FeeReading::NotFee);
+/// assert_eq!(FeeReading::from_text(Some("maybe")), FeeReading::Unknown);
+/// assert!(!FeeReading::Unknown.is_fee());
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FeeReading {
+    /// `true`, `1` or `yes`.
+    Fee,
+    /// `false`, `0`, `no`, an empty value or a missing attribute.
+    NotFee,
+    /// Each other value. It is not a fee, and it gives a warning.
+    Unknown,
+}
+
+impl FeeReading {
+    /// Reads the text of a `fee` attribute. `None` is a missing attribute.
+    #[must_use]
+    pub fn from_text(text: Option<&str>) -> Self {
+        let Some(text) = text else {
+            return Self::NotFee;
+        };
+        let text = text.trim();
+        if ["true", "1", "yes"]
+            .iter()
+            .any(|known| text.eq_ignore_ascii_case(known))
+        {
+            Self::Fee
+        } else if text.is_empty()
+            || ["false", "0", "no"]
+                .iter()
+                .any(|known| text.eq_ignore_ascii_case(known))
+        {
+            Self::NotFee
+        } else {
+            Self::Unknown
+        }
+    }
+
+    /// Returns `true` for [`FeeReading::Fee`] only.
+    #[must_use]
+    pub fn is_fee(self) -> bool {
+        self == Self::Fee
+    }
 }
 
 /// The form of a value time split (stophammer ADR 0073 §1).

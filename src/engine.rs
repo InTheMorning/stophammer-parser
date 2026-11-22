@@ -11,10 +11,10 @@ use crate::phase::Phase;
 use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
-    IngestAlternateEnclosure, IngestBlockTag, IngestEntityId, IngestFeedData, IngestLink,
-    IngestLiveItemData, IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot,
-    IngestPodcastNamespaceTag, IngestRemoteFeedRef, IngestTrackData, IngestTranscript,
-    IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
+    FeeReading, FeedValues, IngestAlternateEnclosure, IngestBlockTag, IngestEntityId,
+    IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute, IngestPerson,
+    IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag, IngestRemoteFeedRef,
+    IngestTrackData, IngestTranscript, IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -69,7 +69,12 @@ impl FeedParser {
         }
     }
 
-    /// Parses an RSS/Podcast XML document into structured feed data.
+    /// Parses an RSS/Podcast XML document and applies the stophammer
+    /// required-field check.
+    ///
+    /// This is [`FeedParser::read`] followed by
+    /// [`check::required_fields`](crate::check::required_fields). That check
+    /// drops each item or live item with a missing required field.
     ///
     /// # Errors
     ///
@@ -79,6 +84,22 @@ impl FeedParser {
     /// - The feed has no `<title>`
     /// - The feed has no `podcast:guid`
     pub fn parse(&self, xml: &str) -> Result<IngestFeedData, ParseError> {
+        crate::check::required_fields(self.read(xml)?)
+    }
+
+    /// Reads the values of an RSS/Podcast XML document with no
+    /// required-field check (musicindex ADR 0086 R-FEED-2).
+    ///
+    /// A missing feed GUID, title, item GUID, item title or live status is
+    /// `None`. Each item and each live item stays in the result. The app
+    /// selects its own check, for example
+    /// [`check::required_fields`](crate::check::required_fields).
+    ///
+    /// # Errors
+    ///
+    /// Returns `ParseError` if the XML is malformed or no `<channel>` element
+    /// is found.
+    pub fn read(&self, xml: &str) -> Result<FeedValues, ParseError> {
         let doc = roxmltree::Document::parse(xml)?;
         let root = doc.root_element();
 
@@ -128,24 +149,9 @@ impl FeedParser {
         let tracks = self.parse_items(&channel, &feed);
         let live_items = self.parse_live_items(&channel, &feed);
 
-        // Validate required fields. Clone `raw_medium` first: ADR 0074 §3a
-        // needs it in the error, and `IngestFeedData` below still needs the
-        // field on `feed`.
-        let raw_medium_for_error = feed.raw_medium.clone();
-        let title = feed.title.ok_or_else(|| ParseError {
-            kind: ErrorKind::NoTitle {
-                raw_medium: raw_medium_for_error.clone(),
-            },
-        })?;
-        let feed_guid = feed.feed_guid.ok_or(ParseError {
-            kind: ErrorKind::NoGuid {
-                raw_medium: raw_medium_for_error,
-            },
-        })?;
-
-        Ok(IngestFeedData {
-            feed_guid,
-            title,
+        Ok(FeedValues {
+            feed_guid: feed.feed_guid,
+            title: feed.title,
             description: feed.description,
             image_url: feed.image_url,
             language: feed.language,
@@ -176,16 +182,12 @@ impl FeedParser {
         &self,
         channel: &roxmltree::Node,
         feed: &FeedDataBuilder,
-    ) -> Vec<IngestTrackData> {
-        let mut tracks = Vec::new();
-
-        for item in channel.children().filter(|n| n.has_tag_name("item")) {
-            if let Some(track) = self.parse_item(&item, feed) {
-                tracks.push(track);
-            }
-        }
-
-        tracks
+    ) -> Vec<IngestTrackData<Option<String>>> {
+        channel
+            .children()
+            .filter(|n| n.has_tag_name("item"))
+            .map(|item| self.parse_item(&item, feed))
+            .collect()
     }
 
     /// Parses all `<podcast:liveItem>` elements within the channel.
@@ -193,20 +195,16 @@ impl FeedParser {
         &self,
         channel: &roxmltree::Node,
         feed: &FeedDataBuilder,
-    ) -> Vec<IngestLiveItemData> {
-        let mut live_items = Vec::new();
-
-        for live_item in channel.children().filter(|n| {
-            n.is_element()
-                && n.tag_name().name() == "liveItem"
-                && is_podcast_namespace(n.tag_name().namespace())
-        }) {
-            if let Some(parsed) = self.parse_live_item(&live_item, feed) {
-                live_items.push(parsed);
-            }
-        }
-
-        live_items
+    ) -> Vec<IngestLiveItemData<Option<String>>> {
+        channel
+            .children()
+            .filter(|n| {
+                n.is_element()
+                    && n.tag_name().name() == "liveItem"
+                    && is_podcast_namespace(n.tag_name().namespace())
+            })
+            .map(|live_item| self.parse_live_item(&live_item, feed))
+            .collect()
     }
 
     /// Parses a single `<item>` element into track data.
@@ -214,12 +212,8 @@ impl FeedParser {
         &self,
         item: &roxmltree::Node,
         feed: &FeedDataBuilder,
-    ) -> Option<IngestTrackData> {
+    ) -> IngestTrackData<Option<String>> {
         let track = self.extract_track_fields(item, feed);
-
-        // Track guid and title are required
-        let track_guid = track.track_guid?;
-        let title = track.title?;
 
         // Extract payment routes (Phase2)
         let payment_routes = if self.phases.contains(&Phase::Phase2) {
@@ -255,9 +249,9 @@ impl FeedParser {
             Vec::new()
         };
 
-        Some(IngestTrackData {
-            track_guid,
-            title,
+        IngestTrackData {
+            track_guid: track.track_guid,
+            title: track.title,
             pub_date: track.pub_date,
             duration_secs: track.duration_secs,
             image_url: track.image_url,
@@ -278,7 +272,7 @@ impl FeedParser {
             value_time_splits,
             transcripts,
             remote_items,
-        })
+        }
     }
 
     /// Parses a single `<podcast:liveItem>` element.
@@ -286,14 +280,9 @@ impl FeedParser {
         &self,
         live_item: &roxmltree::Node,
         feed: &FeedDataBuilder,
-    ) -> Option<IngestLiveItemData> {
+    ) -> IngestLiveItemData<Option<String>> {
         let track = self.extract_track_fields(live_item, feed);
-        let live_item_guid = track.track_guid?;
-        let title = track.title?;
-        let status = live_item.attribute("status")?.trim().to_ascii_lowercase();
-        if status.is_empty() {
-            return None;
-        }
+        let status = normalized_optional_attribute(live_item, "status");
 
         let payment_routes = if self.phases.contains(&Phase::Phase2) {
             extract_payment_routes(live_item)
@@ -329,9 +318,9 @@ impl FeedParser {
 
         let (live_value_uri, live_value_protocol) = extract_live_value(live_item);
 
-        Some(IngestLiveItemData {
-            live_item_guid,
-            title,
+        IngestLiveItemData {
+            live_item_guid: track.track_guid,
+            title: track.title,
             status,
             start_at: live_item.attribute("start").and_then(parse_date),
             end_at: live_item.attribute("end").and_then(parse_date),
@@ -357,7 +346,7 @@ impl FeedParser {
             transcripts,
             live_value_uri,
             live_value_protocol,
-        })
+        }
     }
 
     fn extract_track_fields(
@@ -607,8 +596,11 @@ fn read_payment_recipient(
         _ => return None, // Skip recipients without an address
     };
 
-    let route_type_str = recipient
-        .attribute("type")
+    // musicindex ADR 0086 R-FEED-4: each of `type`, `split` and `fee` keeps
+    // its text adjacent to its parsed form. A default is in the parsed form only.
+    let type_text = recipient.attribute("type").map(String::from);
+    let route_type_str = type_text
+        .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_ascii_lowercase);
@@ -618,14 +610,14 @@ fn read_payment_recipient(
         Some(value) => RouteType::Other(value.to_owned()),
     };
 
-    let split = recipient
-        .attribute("split")
+    let split_text = recipient.attribute("split").map(String::from);
+    let split = split_text
+        .as_deref()
         .and_then(|s| s.parse::<i64>().ok())
         .unwrap_or(0);
 
-    let fee = recipient
-        .attribute("fee")
-        .is_some_and(|f| f.eq_ignore_ascii_case("true") || f == "1");
+    let fee_text = recipient.attribute("fee").map(String::from);
+    let fee = FeeReading::from_text(fee_text.as_deref()).is_fee();
 
     Some(IngestPaymentRoute {
         value_type: value_type.to_owned(),
@@ -633,11 +625,14 @@ fn read_payment_recipient(
         block_index,
         recipient_name: recipient.attribute("name").map(String::from),
         route_type,
+        type_text,
         address,
         custom_key: recipient.attribute("customKey").map(String::from),
         custom_value: recipient.attribute("customValue").map(String::from),
         split,
+        split_text,
         fee,
+        fee_text,
     })
 }
 

@@ -32,6 +32,7 @@
 //! assert_eq!(feed.tracks.len(), 1);
 //! ```
 
+pub mod check;
 pub mod date;
 pub mod duration;
 pub mod engine;
@@ -46,7 +47,7 @@ pub mod types;
 pub use engine::{FeedParser, extract_podcast_namespace};
 pub use error::ParseError;
 pub use types::{
-    IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute,
-    IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag, IngestRemoteFeedRef,
-    IngestTrackData, IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
+    FeeReading, FeedValues, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
+    IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag,
+    IngestRemoteFeedRef, IngestTrackData, IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
 };
