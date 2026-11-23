@@ -97,6 +97,10 @@ pub struct IngestFeedData<R = String> {
     pub podcast_namespace: Option<IngestPodcastNamespaceSnapshot>,
     /// Feed-level payment recipients (fallback at play time).
     pub feed_payment_routes: Vec<IngestPaymentRoute>,
+    /// Each channel `podcast:value` block, in source order. A block with no
+    /// kept recipient stays in this list.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub feed_value_blocks: Vec<IngestValueBlock>,
     /// Parsed live items that have not yet been promoted to permanent tracks.
     pub live_items: Vec<IngestLiveItemData<R>>,
     /// Parsed tracks (items) from the feed.
@@ -167,6 +171,11 @@ pub struct IngestTrackData<R = String> {
     pub links: Vec<IngestLink>,
     /// Payment recipients for this track.
     pub payment_routes: Vec<IngestPaymentRoute>,
+    /// Each item `podcast:value` block, in source order. A block with no kept
+    /// recipient stays in this list, so a reader can see that the item has a
+    /// value block when `payment_routes` is empty.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub value_blocks: Vec<IngestValueBlock>,
     /// Value time splits for this track.
     pub value_time_splits: Vec<IngestValueTimeSplit>,
     /// Transcript files published for this track via `podcast:transcript`.
@@ -366,6 +375,10 @@ pub struct IngestLiveItemData<R = String> {
     pub links: Vec<IngestLink>,
     /// Payment recipients attached to the live item.
     pub payment_routes: Vec<IngestPaymentRoute>,
+    /// Each live item `podcast:value` block, in source order. A block with no
+    /// kept recipient stays in this list.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub value_blocks: Vec<IngestValueBlock>,
     /// Value time splits attached to the live item.
     pub value_time_splits: Vec<IngestValueTimeSplit>,
     /// Transcript files published for this live item via `podcast:transcript`.
@@ -402,6 +415,21 @@ pub struct IngestPodcastNamespaceTag {
     pub attributes: HashMap<String, String>,
     /// Trimmed direct text content, when present.
     pub text: Option<String>,
+}
+
+/// One `podcast:value` block of a channel, an item or a live item.
+///
+/// A block with no kept recipient is in the list. `block_index` is the same
+/// number as the `block_index` of the routes and the splits of the block.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestValueBlock {
+    /// Type of the `podcast:value` block. A missing type gives `lightning`.
+    pub value_type: String,
+    /// Method of the `podcast:value` block.
+    pub value_method: Option<String>,
+    /// Position of the `podcast:value` block in its parent.
+    pub block_index: u32,
 }
 
 /// A payment route recipient (wire format before DB row ID assignment).

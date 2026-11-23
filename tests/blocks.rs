@@ -189,7 +189,7 @@ fn feed_with_no_blocks_serializes_with_no_blocks_key() {
     {
         let json = serde_json::to_string(&feed).expect("serialize to json");
         assert!(
-            !json.contains("blocks"),
+            !json.contains("\"blocks\":"),
             "ADR 0057 §5: empty blocks field must not appear in JSON"
         );
     }

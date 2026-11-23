@@ -59,6 +59,7 @@ pub fn required_fields(values: FeedValues) -> Result<IngestFeedData, ParseError>
         blocks: values.blocks,
         podcast_namespace: values.podcast_namespace,
         feed_payment_routes: values.feed_payment_routes,
+        feed_value_blocks: values.feed_value_blocks,
         live_items: values
             .live_items
             .into_iter()
@@ -93,6 +94,7 @@ fn required_track_fields(track: IngestTrackData<Option<String>>) -> Option<Inges
         entity_ids: track.entity_ids,
         links: track.links,
         payment_routes: track.payment_routes,
+        value_blocks: track.value_blocks,
         value_time_splits: track.value_time_splits,
         transcripts: track.transcripts,
         remote_items: track.remote_items,
@@ -126,6 +128,7 @@ fn required_live_item_fields(
         entity_ids: live_item.entity_ids,
         links: live_item.links,
         payment_routes: live_item.payment_routes,
+        value_blocks: live_item.value_blocks,
         value_time_splits: live_item.value_time_splits,
         transcripts: live_item.transcripts,
         live_value_uri: live_item.live_value_uri,

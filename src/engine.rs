@@ -14,7 +14,8 @@ use crate::types::{
     FeeReading, FeedValues, IngestAlternateEnclosure, IngestBlockTag, IngestEntityId,
     IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute, IngestPerson,
     IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag, IngestRemoteFeedRef,
-    IngestTrackData, IngestTranscript, IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
+    IngestTrackData, IngestTranscript, IngestValueBlock, IngestValueTimeSplit, RouteType,
+    ValueTimeSplitForm,
 };
 
 /// Podcast namespace URI used in namespace-aware feeds.
@@ -127,10 +128,13 @@ impl FeedParser {
         }
 
         // Extract feed-level payment routes (Phase2)
-        let feed_payment_routes = if self.phases.contains(&Phase::Phase2) {
-            extract_payment_routes(&channel)
+        let (feed_payment_routes, feed_value_blocks) = if self.phases.contains(&Phase::Phase2) {
+            (
+                extract_payment_routes(&channel),
+                extract_value_blocks(&channel),
+            )
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         let remote_items = extract_feed_remote_items(&channel);
         let persons = if self.phases.contains(&Phase::Phase4) {
@@ -172,6 +176,7 @@ impl FeedParser {
             blocks,
             podcast_namespace,
             feed_payment_routes,
+            feed_value_blocks,
             live_items,
             tracks,
         })
@@ -216,10 +221,10 @@ impl FeedParser {
         let track = self.extract_track_fields(item, feed);
 
         // Extract payment routes (Phase2)
-        let payment_routes = if self.phases.contains(&Phase::Phase2) {
-            extract_payment_routes(item)
+        let (payment_routes, value_blocks) = if self.phases.contains(&Phase::Phase2) {
+            (extract_payment_routes(item), extract_value_blocks(item))
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         let persons = if self.phases.contains(&Phase::Phase4) {
             extract_persons(item)
@@ -269,6 +274,7 @@ impl FeedParser {
             entity_ids,
             links,
             payment_routes,
+            value_blocks,
             value_time_splits,
             transcripts,
             remote_items,
@@ -284,10 +290,13 @@ impl FeedParser {
         let track = self.extract_track_fields(live_item, feed);
         let status = normalized_optional_attribute(live_item, "status");
 
-        let payment_routes = if self.phases.contains(&Phase::Phase2) {
-            extract_payment_routes(live_item)
+        let (payment_routes, value_blocks) = if self.phases.contains(&Phase::Phase2) {
+            (
+                extract_payment_routes(live_item),
+                extract_value_blocks(live_item),
+            )
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         let persons = if self.phases.contains(&Phase::Phase4) {
             extract_persons(live_item)
@@ -342,6 +351,7 @@ impl FeedParser {
             entity_ids,
             links,
             payment_routes,
+            value_blocks,
             value_time_splits,
             transcripts,
             live_value_uri,
@@ -636,22 +646,43 @@ fn read_payment_recipient(
     })
 }
 
-/// Extracts `podcast:value > podcast:valueRecipient` payment routes from a node.
-fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
-    let mut routes = Vec::new();
-
-    for (block_position, value_node) in node
-        .children()
+/// Gives each direct `podcast:value` child of a node with its block fields,
+/// in source order.
+fn value_block_nodes<'a, 'input>(
+    node: &roxmltree::Node<'a, 'input>,
+) -> impl Iterator<Item = (IngestValueBlock, roxmltree::Node<'a, 'input>)> {
+    node.children()
         .filter(|n| {
             n.is_element()
                 && n.tag_name().name() == "value"
                 && is_podcast_namespace(n.tag_name().namespace())
         })
         .enumerate()
-    {
-        let block_index = u32::try_from(block_position).unwrap_or(u32::MAX);
-        let value_type = normalized_attribute(&value_node, "type", "lightning");
-        let value_method = normalized_optional_attribute(&value_node, "method");
+        .map(|(block_position, value_node)| {
+            let block = IngestValueBlock {
+                value_type: normalized_attribute(&value_node, "type", "lightning"),
+                value_method: normalized_optional_attribute(&value_node, "method"),
+                block_index: u32::try_from(block_position).unwrap_or(u32::MAX),
+            };
+            (block, value_node)
+        })
+}
+
+/// Extracts each `podcast:value` block of a node, with or without recipients.
+fn extract_value_blocks(node: &roxmltree::Node) -> Vec<IngestValueBlock> {
+    value_block_nodes(node).map(|(block, _)| block).collect()
+}
+
+/// Extracts `podcast:value > podcast:valueRecipient` payment routes from a node.
+fn extract_payment_routes(node: &roxmltree::Node) -> Vec<IngestPaymentRoute> {
+    let mut routes = Vec::new();
+
+    for (block, value_node) in value_block_nodes(node) {
+        let IngestValueBlock {
+            value_type,
+            value_method,
+            block_index,
+        } = block;
         for recipient in value_node.children().filter(|n| {
             n.is_element()
                 && n.tag_name().name() == "valueRecipient"
@@ -747,18 +778,12 @@ fn normalized_optional_attribute(node: &roxmltree::Node, name: &str) -> Option<S
 fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit> {
     let mut splits = Vec::new();
 
-    for (block_position, value_node) in node
-        .children()
-        .filter(|n| {
-            n.is_element()
-                && n.tag_name().name() == "value"
-                && is_podcast_namespace(n.tag_name().namespace())
-        })
-        .enumerate()
-    {
-        let block_index = u32::try_from(block_position).unwrap_or(u32::MAX);
-        let value_type = normalized_attribute(&value_node, "type", "lightning");
-        let value_method = normalized_optional_attribute(&value_node, "method");
+    for (block, value_node) in value_block_nodes(node) {
+        let IngestValueBlock {
+            value_type,
+            value_method,
+            block_index,
+        } = block;
         for vts in value_node.children().filter(|n| {
             n.is_element()
                 && n.tag_name().name() == "valueTimeSplit"

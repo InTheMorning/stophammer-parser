@@ -60,6 +60,13 @@ them.
 - `IngestValueTimeSplit::remote_feed_url` keeps the `feedUrl` text of the
   `podcast:remoteItem` of a remote split (R-FEED-1 item 4). The test is
   `remote_split_keeps_its_feed_url` in `tests/value_time_split.rs`.
+- `IngestFeedData::feed_value_blocks`, `IngestTrackData::value_blocks` and
+  `IngestLiveItemData::value_blocks` give each `podcast:value` block, also a
+  block with no recipients. A reader then sees an item block with empty
+  `payment_routes`, and does not use the channel block (R-TAG-6 item 1).
+  `block_index` joins a block to its routes. The tests are in
+  `tests/value_blocks.rs`. Orchestrator choice 2026-11-23, the recommended
+  option of three. The operator can change it.
 
 ## What Is True Here
 
