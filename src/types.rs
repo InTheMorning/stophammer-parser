@@ -13,7 +13,7 @@ use std::collections::HashMap;
 /// Contains all feed-level metadata, payment routes, and tracks
 /// extracted from an RSS/Podcast XML document.
 ///
-/// `R` is the type of each required field (musicindex ADR 0086 R-FEED-2).
+/// `R` is the type of each required field (musicindex ADR 0093 R-FEED-2).
 /// [`FeedParser::read`](crate::FeedParser::read) gives
 /// [`FeedValues`], where `R` is `Option<String>` and no field is required.
 /// [`check::required_fields`](crate::check::required_fields) gives the
@@ -103,7 +103,7 @@ pub struct IngestFeedData<R = String> {
     pub tracks: Vec<IngestTrackData<R>>,
 }
 
-/// The values of a feed before a required-field check (musicindex ADR 0086
+/// The values of a feed before a required-field check (musicindex ADR 0093
 /// R-FEED-2). A missing required field is `None`.
 pub type FeedValues = IngestFeedData<Option<String>>;
 
@@ -419,7 +419,7 @@ pub struct IngestPaymentRoute {
     /// The parsed form of `type`. A missing or empty `type` gives
     /// [`RouteType::Node`].
     pub route_type: RouteType,
-    /// The `type` attribute as the feed gives it (musicindex ADR 0086
+    /// The `type` attribute as the feed gives it (musicindex ADR 0093
     /// R-FEED-4). `None` when the attribute is missing.
     #[cfg_attr(
         feature = "serde",
@@ -435,7 +435,7 @@ pub struct IngestPaymentRoute {
     /// The parsed form of `split`. A missing value, or a value that is not
     /// an integer, gives 0.
     pub split: i64,
-    /// The `split` attribute as the feed gives it (musicindex ADR 0086
+    /// The `split` attribute as the feed gives it (musicindex ADR 0093
     /// R-FEED-4). `None` when the attribute is missing.
     #[cfg_attr(
         feature = "serde",
@@ -445,7 +445,7 @@ pub struct IngestPaymentRoute {
     /// The parsed form of `fee`: `true` when the recipient is an app-fee
     /// destination. [`FeeReading`] gives the rule.
     pub fee: bool,
-    /// The `fee` attribute as the feed gives it (musicindex ADR 0086
+    /// The `fee` attribute as the feed gives it (musicindex ADR 0093
     /// R-FEED-4). `None` when the attribute is missing.
     #[cfg_attr(
         feature = "serde",
@@ -456,7 +456,7 @@ pub struct IngestPaymentRoute {
 
 impl IngestPaymentRoute {
     /// Returns `true` when `fee_text` is a value that the fee rule does not
-    /// know (musicindex ADR 0086 R-FEED-4 item 5). This is the warning of
+    /// know (musicindex ADR 0093 R-FEED-4 item 5). This is the warning of
     /// that rule. The route stays in the result, and `fee` is `false`.
     #[must_use]
     pub fn fee_warning(&self) -> bool {
@@ -464,7 +464,7 @@ impl IngestPaymentRoute {
     }
 }
 
-/// The reading of a `fee` attribute (musicindex ADR 0086 R-FEED-4 item 5).
+/// The reading of a `fee` attribute (musicindex ADR 0093 R-FEED-4 item 5).
 ///
 /// The rule removes the spaces at the two ends of the text and ignores the
 /// letter case.
@@ -554,6 +554,10 @@ pub struct IngestValueTimeSplit {
     pub remote_feed_guid: Option<String>,
     /// GUID of the remote item to pay. Can be `None` in the remote form.
     pub remote_item_guid: Option<String>,
+    /// The `feedUrl` attribute of the `podcast:remoteItem` as the feed gives
+    /// it, or `None` when the source states none. `None` in the local form
+    /// (musicindex ADR 0093 R-FEED-1 item 4).
+    pub remote_feed_url: Option<String>,
     /// The stated `remoteStartTime`, or `None` when the source states none.
     pub remote_start_time_secs: Option<f64>,
     /// The stated `remotePercentage`, or `None` when the source states none.

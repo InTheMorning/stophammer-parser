@@ -271,3 +271,43 @@ fn remote_split_with_no_item_guid_is_kept() {
     assert_eq!(splits[0].remote_item_guid, None);
     assert_eq!(splits[0].remote_feed_guid.as_deref(), Some("feed-guid"));
 }
+
+/// A remote split keeps the `feedUrl` of its `podcast:remoteItem` as the feed
+/// gives it. A remote split with no `feedUrl` and a local split give `None`
+/// (musicindex ADR 0093 R-FEED-1 item 4).
+#[test]
+fn remote_split_keeps_its_feed_url() {
+    let xml = r#"<rss xmlns:podcast="https://podcastindex.org/namespace/1.0" version="2.0">
+   <channel>
+      <title>Show</title>
+      <podcast:guid>claim-feed-url</podcast:guid>
+      <item>
+         <guid>i1</guid>
+         <title>Episode</title>
+         <podcast:value type="lightning" method="keysend">
+            <podcast:valueRecipient name="Host" type="node" address="02d5c1bf8b940dc9cadca86d1b0a3c37fbe39cee4c7e839e33bef9174531d27f52" split="100" />
+            <podcast:valueTimeSplit startTime="10" duration="20">
+               <podcast:remoteItem feedGuid="a94f5cc9-8c58-55fc-91fe-a324087a655b" itemGuid="song-1" feedUrl=" https://example.com/song.xml " />
+            </podcast:valueTimeSplit>
+            <podcast:valueTimeSplit startTime="40" duration="20">
+               <podcast:remoteItem feedGuid="a94f5cc9-8c58-55fc-91fe-a324087a655b" itemGuid="song-2" />
+            </podcast:valueTimeSplit>
+            <podcast:valueTimeSplit startTime="70" duration="20">
+               <podcast:valueRecipient name="Guest" type="node" address="02dd306e68c46681aa21d88a436fb35355a8579dd30201581cefa17cb179fc4c15" split="100" />
+            </podcast:valueTimeSplit>
+         </podcast:value>
+      </item>
+   </channel>
+</rss>"#;
+    let feed = profile::stophammer().parse(xml).expect("feed parses");
+    let splits = &feed.tracks[0].value_time_splits;
+    assert_eq!(splits.len(), 3, "the three splits are kept");
+    assert_eq!(
+        splits[0].remote_feed_url.as_deref(),
+        Some(" https://example.com/song.xml "),
+        "the feedUrl text stays as the feed gives it"
+    );
+    assert_eq!(splits[1].remote_feed_url, None, "no feedUrl gives None");
+    assert_eq!(splits[2].form, ValueTimeSplitForm::Local);
+    assert_eq!(splits[2].remote_feed_url, None, "a local split gives None");
+}

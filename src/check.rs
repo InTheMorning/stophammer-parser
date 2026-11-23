@@ -1,4 +1,4 @@
-//! Required-field checks that an app selects (musicindex ADR 0086 R-FEED-2).
+//! Required-field checks that an app selects (musicindex ADR 0093 R-FEED-2).
 //!
 //! [`FeedParser::read`](crate::FeedParser::read) gives the values of a feed
 //! with no check. A check in this module makes the required fields of one
@@ -7,7 +7,7 @@
 use crate::error::{ErrorKind, ParseError};
 use crate::types::{FeedValues, IngestFeedData, IngestLiveItemData, IngestTrackData};
 
-/// The stophammer required-field check (musicindex ADR 0086 R-FEED-2 item 2).
+/// The stophammer required-field check (musicindex ADR 0093 R-FEED-2 item 2).
 ///
 /// - The feed needs a title and a feed GUID. If one is missing, the check
 ///   gives an error. The title is examined first.

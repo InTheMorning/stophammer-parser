@@ -7,13 +7,13 @@ No network, no database, no async. The input is one XML string.
 Follow the `project-baseline` skill. It holds the shared working rules.
 
 `stophammer/docs/adr/` owns every decision that shapes this crate.
-`stophammer/docs/adr/README.md` is the index. musicindex ADR 0086 R-FEED-1
+`stophammer/docs/adr/README.md` is the index. musicindex ADR 0093 R-FEED-1
 to R-FEED-4 (`~/build/musicindex/docs/adr/`) make this crate the suite
 parser for Podcasting 2.0 feeds.
 
 The crate has two users: `stophammer-crawler` and HitIt. The crawler uses
 it by path. HitIt uses it as a Git dependency at a fixed revision
-(musicindex ADR 0086 R-FEED-1 item 2). A change to the public types or to a
+(musicindex ADR 0093 R-FEED-1 item 2). A change to the public types or to a
 read rule can change the two users, so tell the orchestrator session about
 each such change.
 
@@ -39,7 +39,7 @@ payment route and each value time split has the `value_type`, the
 `RouteType::Other` holds each recipient `type` that is not `node` or
 `lnaddress`. No release holds this change.
 
-musicindex ADR 0086 R-FEED-2 to R-FEED-4 are in this crate. No release holds
+musicindex ADR 0093 R-FEED-2 to R-FEED-4 are in this crate. No release holds
 them.
 
 - `FeedParser::read` gives `FeedValues` with no required-field check.
@@ -52,11 +52,14 @@ them.
   `RouteType::Node`, and a missing `split` gives 0. The text field is `None`,
   so an app can apply its own rule. This is the stophammer selection of
   R-FEED-2 item 3 for R-FEED-4 item 2.
-- `tests/adr0086_feed_read_tests.rs` holds the tests of R-FEED-2 to R-FEED-4.
+- `tests/adr0093_feed_read_tests.rs` holds the tests of R-FEED-2 to R-FEED-4.
 - `src/web_link.rs` holds `web_url_or_none` and `web_link_for_read`, the read
   rules of `stophammer` ADR 0054 §4 and §4a (R-FEED-1 item 4). The parse
   output stays raw. An app calls these functions when it shows or writes a
   link. `tests/web_link.rs` holds their tests.
+- `IngestValueTimeSplit::remote_feed_url` keeps the `feedUrl` text of the
+  `podcast:remoteItem` of a remote split (R-FEED-1 item 4). The test is
+  `remote_split_keeps_its_feed_url` in `tests/value_time_split.rs`.
 
 ## What Is True Here
 

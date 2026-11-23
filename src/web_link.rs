@@ -2,7 +2,7 @@
 //!
 //! The parse output keeps each raw value. An app applies these functions when
 //! it shows or writes a URL. `stophammer` ADR 0054 §4 and §4a own the rules.
-//! musicindex ADR 0086 R-FEED-1 item 4 puts them in this crate, so each app
+//! musicindex ADR 0093 R-FEED-1 item 4 puts them in this crate, so each app
 //! uses one copy.
 
 /// Returns `value` when it parses as a URL with the scheme `http` or

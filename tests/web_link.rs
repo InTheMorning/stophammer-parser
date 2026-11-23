@@ -1,4 +1,4 @@
-// The read rules of stophammer ADR 0054 §4 and §4a. musicindex ADR 0086
+// The read rules of stophammer ADR 0054 §4 and §4a. musicindex ADR 0093
 // R-FEED-1 item 4 puts them in this crate.
 
 use stophammer_parser::{web_link_for_read, web_url_or_none};

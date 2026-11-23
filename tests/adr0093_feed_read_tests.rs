@@ -1,4 +1,4 @@
-//! musicindex ADR 0086 R-FEED-2, R-FEED-3 and R-FEED-4.
+//! musicindex ADR 0093 R-FEED-2, R-FEED-3 and R-FEED-4.
 
 use std::fmt::Write as _;
 

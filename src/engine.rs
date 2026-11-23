@@ -88,7 +88,7 @@ impl FeedParser {
     }
 
     /// Reads the values of an RSS/Podcast XML document with no
-    /// required-field check (musicindex ADR 0086 R-FEED-2).
+    /// required-field check (musicindex ADR 0093 R-FEED-2).
     ///
     /// A missing feed GUID, title, item GUID, item title or live status is
     /// `None`. Each item and each live item stays in the result. The app
@@ -596,7 +596,7 @@ fn read_payment_recipient(
         _ => return None, // Skip recipients without an address
     };
 
-    // musicindex ADR 0086 R-FEED-4: each of `type`, `split` and `fee` keeps
+    // musicindex ADR 0093 R-FEED-4: each of `type`, `split` and `fee` keeps
     // its text adjacent to its parsed form. A default is in the parsed form only.
     let type_text = recipient.attribute("type").map(String::from);
     let route_type_str = type_text
@@ -795,58 +795,73 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
                 continue;
             }
 
-            let (form, remote_feed_guid, remote_item_guid, remote_start_time_secs, recipients) =
-                if has_remote_item {
-                    // Rule 3: the remote form needs a non-empty feedGuid.
-                    let remote = &remote_items[0];
-                    let Some(remote_feed_guid) = remote
-                        .attribute("feedGuid")
-                        .map(str::trim)
-                        .filter(|g| !g.is_empty())
-                        .map(str::to_owned)
-                    else {
-                        continue;
-                    };
-
-                    let remote_item_guid = remote
-                        .attribute("itemGuid")
-                        .map(str::trim)
-                        .filter(|g| !g.is_empty())
-                        .map(str::to_owned);
-
-                    // Rule 6: remoteStartTime gives None when it does not parse.
-                    let remote_start_time_secs =
-                        parse_finite_f64_attribute(&vts, "remoteStartTime");
-
-                    (
-                        ValueTimeSplitForm::Remote,
-                        Some(remote_feed_guid),
-                        remote_item_guid,
-                        remote_start_time_secs,
-                        Vec::new(),
-                    )
-                } else if has_recipients {
-                    // Rule 4: the local form needs at least one kept recipient.
-                    let recipients: Vec<IngestPaymentRoute> = recipient_nodes
-                        .iter()
-                        .filter_map(|recipient| {
-                            read_payment_recipient(
-                                recipient,
-                                &value_type,
-                                value_method.as_deref(),
-                                block_index,
-                            )
-                        })
-                        .collect();
-                    if recipients.is_empty() {
-                        continue;
-                    }
-
-                    (ValueTimeSplitForm::Local, None, None, None, recipients)
-                } else {
-                    // Rule 2: no child of either kind.
+            let (
+                form,
+                remote_feed_guid,
+                remote_item_guid,
+                remote_feed_url,
+                remote_start_time_secs,
+                recipients,
+            ) = if has_remote_item {
+                // Rule 3: the remote form needs a non-empty feedGuid.
+                let remote = &remote_items[0];
+                let Some(remote_feed_guid) = remote
+                    .attribute("feedGuid")
+                    .map(str::trim)
+                    .filter(|g| !g.is_empty())
+                    .map(str::to_owned)
+                else {
                     continue;
                 };
+
+                let remote_item_guid = remote
+                    .attribute("itemGuid")
+                    .map(str::trim)
+                    .filter(|g| !g.is_empty())
+                    .map(str::to_owned);
+
+                let remote_feed_url = remote.attribute("feedUrl").map(str::to_owned);
+
+                // Rule 6: remoteStartTime gives None when it does not parse.
+                let remote_start_time_secs = parse_finite_f64_attribute(&vts, "remoteStartTime");
+
+                (
+                    ValueTimeSplitForm::Remote,
+                    Some(remote_feed_guid),
+                    remote_item_guid,
+                    remote_feed_url,
+                    remote_start_time_secs,
+                    Vec::new(),
+                )
+            } else if has_recipients {
+                // Rule 4: the local form needs at least one kept recipient.
+                let recipients: Vec<IngestPaymentRoute> = recipient_nodes
+                    .iter()
+                    .filter_map(|recipient| {
+                        read_payment_recipient(
+                            recipient,
+                            &value_type,
+                            value_method.as_deref(),
+                            block_index,
+                        )
+                    })
+                    .collect();
+                if recipients.is_empty() {
+                    continue;
+                }
+
+                (
+                    ValueTimeSplitForm::Local,
+                    None,
+                    None,
+                    None,
+                    None,
+                    recipients,
+                )
+            } else {
+                // Rule 2: no child of either kind.
+                continue;
+            };
 
             // Rule 5: remotePercentage drops the split when stated but
             // unreadable. The stated number is kept with no limit.
@@ -870,6 +885,7 @@ fn extract_value_time_splits(node: &roxmltree::Node) -> Vec<IngestValueTimeSplit
                 duration_secs,
                 remote_feed_guid,
                 remote_item_guid,
+                remote_feed_url,
                 remote_start_time_secs,
                 remote_percentage,
                 recipients,
