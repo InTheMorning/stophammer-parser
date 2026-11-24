@@ -109,6 +109,10 @@ pub enum FeedField {
     Locked,
     /// `locked_owner`
     LockedOwner,
+    /// `itunes_image_url`
+    ItunesImageUrl,
+    /// `rss_image_url`
+    RssImageUrl,
 }
 
 /// Track-level output fields.
@@ -124,6 +128,8 @@ pub enum TrackField {
     DurationSecs,
     /// `image_url`
     ImageUrl,
+    /// `itunes_image_url`
+    ItunesImageUrl,
     /// `language`
     Language,
     /// `enclosure_url`

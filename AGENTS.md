@@ -72,6 +72,14 @@ them.
   first `http` or `https` source, else the `url` attribute. Orchestrator
   choice 2026-11-23, for musicindex ADR 0095. The tests are in
   `tests/alternate_enclosure.rs`.
+- The parser gives each image source as its own value, for musicindex ADR
+  0096 R-IMAGE-1. `FeedValues` has `itunes_image_url` and `rss_image_url`.
+  `IngestTrackData` has `itunes_image_url`, `podcast_images` (each
+  `podcast:image` with `href` and `purpose`) and `podcast_images_srcset`
+  (each `srcset` candidate with its `width`). `image_url` does not change,
+  and the parser does not select an image. The tests are in
+  `tests/image_sources.rs`. The stophammer session selected the field names
+  on 2026-11-23, from a musicindex-lib proposal.
 
 ## What Is True Here
 

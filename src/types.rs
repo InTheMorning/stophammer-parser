@@ -29,6 +29,20 @@ pub struct IngestFeedData<R = String> {
     pub description: Option<String>,
     /// Image URL from `itunes:image`, `podcast:images`, or `<image><url>`.
     pub image_url: Option<String>,
+    /// The `href` of the channel `itunes:image`, trimmed. An empty value
+    /// gives `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub itunes_image_url: Option<String>,
+    /// The text of the channel `<image><url>`, trimmed. An empty value gives
+    /// `None`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub rss_image_url: Option<String>,
     /// Language code from `<language>`.
     pub language: Option<String>,
     /// Whether the feed is marked explicit.
@@ -127,6 +141,33 @@ pub struct IngestBlockTag {
     pub value: String,
 }
 
+/// One `podcast:image` element.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestImage {
+    /// The `href` attribute, trimmed. The parser skips an element with an
+    /// empty or a missing `href`.
+    pub href: String,
+    /// The `purpose` attribute, trimmed, for example `artwork` or
+    /// `artwork social`. An empty or a missing attribute gives `None`.
+    pub purpose: Option<String>,
+}
+
+/// One candidate of a `podcast:images` `srcset` attribute.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IngestSrcsetEntry {
+    /// The URL of the candidate.
+    pub url: String,
+    /// The descriptor text after the URL, for example `1500w` or `2x`.
+    /// A candidate with no descriptor gives `None`.
+    pub descriptor: Option<String>,
+    /// The width from a `w` descriptor, for example 1500 from `1500w`.
+    /// Another descriptor, or a width that is not a positive integer, gives
+    /// `None`.
+    pub width: Option<i64>,
+}
+
 /// Parsed track (episode/item) data.
 ///
 /// `R` is the type of each required field, as in [`IngestFeedData`].
@@ -143,6 +184,20 @@ pub struct IngestTrackData<R = String> {
     pub duration_secs: Option<i64>,
     /// Track-level artwork URL from `itunes:image href` or `podcast:images`.
     pub image_url: Option<String>,
+    /// The `href` of the item `itunes:image`, trimmed. An empty value gives
+    /// `None`. The channel image does not fill this field.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub itunes_image_url: Option<String>,
+    /// Each item `podcast:image`, in the sequence of the feed.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub podcast_images: Vec<IngestImage>,
+    /// Each candidate of the `srcset` of each item `podcast:images`, in the
+    /// sequence of the feed.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub podcast_images_srcset: Vec<IngestSrcsetEntry>,
     /// Language code override for this track.
     pub language: Option<String>,
     /// Enclosure media URL.

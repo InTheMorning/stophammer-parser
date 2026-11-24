@@ -12,10 +12,10 @@ use crate::rule::{FeedField, Rule, Source, Target, TrackField};
 use crate::transform::{TransformResult, apply_transform};
 use crate::types::{
     FeeReading, FeedValues, IngestAlternateEnclosure, IngestBlockTag, IngestEntityId,
-    IngestFeedData, IngestLink, IngestLiveItemData, IngestPaymentRoute, IngestPerson,
+    IngestFeedData, IngestImage, IngestLink, IngestLiveItemData, IngestPaymentRoute, IngestPerson,
     IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag, IngestRemoteFeedRef,
-    IngestTrackData, IngestTranscript, IngestValueBlock, IngestValueTimeSplit, RouteType,
-    ValueTimeSplitForm,
+    IngestSrcsetEntry, IngestTrackData, IngestTranscript, IngestValueBlock, IngestValueTimeSplit,
+    RouteType, ValueTimeSplitForm,
 };
 use crate::web_link::web_url_or_none;
 
@@ -159,6 +159,8 @@ impl FeedParser {
             title: feed.title,
             description: feed.description,
             image_url: feed.image_url,
+            itunes_image_url: feed.itunes_image_url,
+            rss_image_url: feed.rss_image_url,
             language: feed.language,
             explicit: feed.explicit,
             itunes_type: feed.itunes_type,
@@ -240,6 +242,11 @@ impl FeedParser {
         let links = extract_links(item, "track");
         let alternate_enclosures = extract_alternate_enclosures(item);
         let transcripts = extract_transcripts(item);
+        let (podcast_images, podcast_images_srcset) = if self.phases.contains(&Phase::Phase5) {
+            (extract_podcast_images(item), extract_srcset_entries(item))
+        } else {
+            (Vec::new(), Vec::new())
+        };
 
         // Extract value time splits (Phase3)
         let value_time_splits = if self.phases.contains(&Phase::Phase3) {
@@ -261,6 +268,9 @@ impl FeedParser {
             pub_date: track.pub_date,
             duration_secs: track.duration_secs,
             image_url: track.image_url,
+            itunes_image_url: track.itunes_image_url,
+            podcast_images,
+            podcast_images_srcset,
             language: track.language,
             enclosure_url: track.enclosure_url,
             enclosure_type: track.enclosure_type,
@@ -502,9 +512,17 @@ fn extract_source(node: &roxmltree::Node, source: &Source) -> Option<String> {
             child,
             child_ns,
         } => {
-            let parent_node = find_child(node, parent, *parent_ns)?;
-            let child_node = find_child(&parent_node, child, *child_ns)?;
-            child_text(&child_node)
+            // `parent_ns: None` matches each namespace, so `image` also
+            // matches `itunes:image`. Use the first parent with the child.
+            node.children()
+                .filter(|n| {
+                    n.is_element()
+                        && n.tag_name().name() == *parent
+                        && namespace_matches(n.tag_name().namespace(), *parent_ns)
+                })
+                .find_map(|parent_node| {
+                    find_child(&parent_node, child, *child_ns).and_then(|n| child_text(&n))
+                })
         }
         Source::Attr { tag, ns, attr } => {
             find_child(node, tag, *ns).and_then(|n| n.attribute(*attr).map(String::from))
@@ -1226,6 +1244,59 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
     links
 }
 
+/// Extracts each `podcast:image` child of a node, in the sequence of the feed.
+///
+/// The parser skips an element with an empty or a missing `href`.
+fn extract_podcast_images(node: &roxmltree::Node) -> Vec<IngestImage> {
+    node.children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "image"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .filter_map(|n| {
+            let href = n
+                .attribute("href")
+                .map(str::trim)
+                .filter(|v| !v.is_empty())?;
+            Some(IngestImage {
+                href: href.to_owned(),
+                purpose: normalized_optional_attribute(&n, "purpose"),
+            })
+        })
+        .collect()
+}
+
+/// Extracts each `srcset` candidate of each `podcast:images` child of a node,
+/// in the sequence of the feed.
+fn extract_srcset_entries(node: &roxmltree::Node) -> Vec<IngestSrcsetEntry> {
+    node.children()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "images"
+                && is_podcast_namespace(n.tag_name().namespace())
+        })
+        .filter_map(|n| n.attribute("srcset"))
+        .flat_map(|srcset| srcset.split(','))
+        .filter_map(|candidate| {
+            let mut parts = candidate.split_whitespace();
+            let url = parts.next()?.to_owned();
+            let descriptor = parts.collect::<Vec<_>>().join(" ");
+            let descriptor = (!descriptor.is_empty()).then_some(descriptor);
+            let width = descriptor
+                .as_deref()
+                .and_then(|d| d.strip_suffix('w'))
+                .and_then(|w| w.parse::<i64>().ok())
+                .filter(|w| *w > 0);
+            Some(IngestSrcsetEntry {
+                url,
+                descriptor,
+                width,
+            })
+        })
+        .collect()
+}
+
 /// Extracts each `podcast:alternateEnclosure` of an item or a live item.
 ///
 /// `sources` holds each non-empty `podcast:source` `uri`, trimmed, in the
@@ -1455,6 +1526,8 @@ struct FeedDataBuilder {
     title: Option<String>,
     description: Option<String>,
     image_url: Option<String>,
+    itunes_image_url: Option<String>,
+    rss_image_url: Option<String>,
     language: Option<String>,
     explicit: bool,
     explicit_set: bool,
@@ -1487,6 +1560,8 @@ impl FeedDataBuilder {
             FeedField::NewFeedUrl => self.new_feed_url.is_some(),
             FeedField::Locked => self.locked.is_some(),
             FeedField::LockedOwner => self.locked_owner.is_some(),
+            FeedField::ItunesImageUrl => self.itunes_image_url.is_some(),
+            FeedField::RssImageUrl => self.rss_image_url.is_some(),
         }
     }
 
@@ -1512,6 +1587,10 @@ impl FeedDataBuilder {
             (FeedField::NewFeedUrl, TransformResult::Text(v)) => self.new_feed_url = Some(v),
             (FeedField::Locked, TransformResult::Bool(v)) => self.locked = Some(v),
             (FeedField::LockedOwner, TransformResult::Text(v)) => self.locked_owner = Some(v),
+            (FeedField::ItunesImageUrl, TransformResult::Text(v)) => {
+                self.itunes_image_url = Some(v);
+            }
+            (FeedField::RssImageUrl, TransformResult::Text(v)) => self.rss_image_url = Some(v),
             _ => {} // Type mismatch — silently skip
         }
     }
@@ -1524,6 +1603,7 @@ struct TrackDataBuilder {
     pub_date: Option<i64>,
     duration_secs: Option<i64>,
     image_url: Option<String>,
+    itunes_image_url: Option<String>,
     language: Option<String>,
     enclosure_url: Option<String>,
     enclosure_type: Option<String>,
@@ -1544,6 +1624,7 @@ impl TrackDataBuilder {
             TrackField::PubDate => self.pub_date.is_some(),
             TrackField::DurationSecs => self.duration_secs.is_some(),
             TrackField::ImageUrl => self.image_url.is_some(),
+            TrackField::ItunesImageUrl => self.itunes_image_url.is_some(),
             TrackField::Language => self.language.is_some(),
             TrackField::EnclosureUrl => self.enclosure_url.is_some(),
             TrackField::EnclosureType => self.enclosure_type.is_some(),
@@ -1563,6 +1644,9 @@ impl TrackDataBuilder {
             (TrackField::PubDate, TransformResult::Int(v)) => self.pub_date = Some(v),
             (TrackField::DurationSecs, TransformResult::Int(v)) => self.duration_secs = Some(v),
             (TrackField::ImageUrl, TransformResult::Text(v)) => self.image_url = Some(v),
+            (TrackField::ItunesImageUrl, TransformResult::Text(v)) => {
+                self.itunes_image_url = Some(v);
+            }
             (TrackField::Language, TransformResult::Text(v)) => self.language = Some(v),
             (TrackField::EnclosureUrl, TransformResult::Text(v)) => self.enclosure_url = Some(v),
             (TrackField::EnclosureType, TransformResult::Text(v)) => self.enclosure_type = Some(v),

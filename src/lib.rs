@@ -48,9 +48,9 @@ pub mod web_link;
 pub use engine::{FeedParser, extract_podcast_namespace};
 pub use error::ParseError;
 pub use types::{
-    FeeReading, FeedValues, IngestEntityId, IngestFeedData, IngestLink, IngestLiveItemData,
-    IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot, IngestPodcastNamespaceTag,
-    IngestRemoteFeedRef, IngestTrackData, IngestValueBlock, IngestValueTimeSplit, RouteType,
-    ValueTimeSplitForm,
+    FeeReading, FeedValues, IngestEntityId, IngestFeedData, IngestImage, IngestLink,
+    IngestLiveItemData, IngestPaymentRoute, IngestPerson, IngestPodcastNamespaceSnapshot,
+    IngestPodcastNamespaceTag, IngestRemoteFeedRef, IngestSrcsetEntry, IngestTrackData,
+    IngestValueBlock, IngestValueTimeSplit, RouteType, ValueTimeSplitForm,
 };
 pub use web_link::{web_link_for_read, web_url_or_none};

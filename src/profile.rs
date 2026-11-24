@@ -198,6 +198,28 @@ fn feed_rules() -> Vec<Rule> {
             transform: Transform::None,
             target: Target::Feed(FeedField::ImageUrl),
         },
+        // Each image source as its own value (musicindex ADR 0096 R-IMAGE-1)
+        Rule {
+            phase: Phase::Itunes,
+            source: Source::Attr {
+                tag: "image",
+                ns: Some(ITUNES_NS),
+                attr: "href",
+            },
+            transform: Transform::TrimText,
+            target: Target::Feed(FeedField::ItunesImageUrl),
+        },
+        Rule {
+            phase: Phase::Rss2Core,
+            source: Source::NestedText {
+                parent: "image",
+                parent_ns: None,
+                child: "url",
+                child_ns: None,
+            },
+            transform: Transform::TrimText,
+            target: Target::Feed(FeedField::RssImageUrl),
+        },
         // iTunes: explicit
         Rule {
             phase: Phase::Itunes,
@@ -453,6 +475,18 @@ fn track_rules() -> Vec<Rule> {
             },
             transform: Transform::FirstSrcsetUrl,
             target: Target::Track(TrackField::ImageUrl),
+        },
+        // iTunes: item-level artwork as its own value (musicindex ADR 0096
+        // R-IMAGE-1). The channel image does not fill it.
+        Rule {
+            phase: Phase::Itunes,
+            source: Source::Attr {
+                tag: "image",
+                ns: Some(ITUNES_NS),
+                attr: "href",
+            },
+            transform: Transform::TrimText,
+            target: Target::Track(TrackField::ItunesImageUrl),
         },
         // iTunes: author
         Rule {
