@@ -290,8 +290,14 @@ pub struct IngestLink {
 pub struct IngestAlternateEnclosure {
     /// Source order within the enclosing item/live item.
     pub position: i64,
-    /// Alternate enclosure URL.
+    /// The first `podcast:source` `uri` with the scheme `http` or `https`.
+    /// When no source has such a URI, the `url` attribute of the element.
     pub url: String,
+    /// Each non-empty `podcast:source` `uri`, trimmed, in the sequence of
+    /// the feed. A source with a scheme that is not `http` or `https`, for
+    /// example `ipfs://`, stays in this list.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub sources: Vec<String>,
     /// MIME type when published.
     pub mime_type: Option<String>,
     /// Byte length when published.

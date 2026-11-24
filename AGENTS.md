@@ -67,6 +67,11 @@ them.
   `block_index` joins a block to its routes. The tests are in
   `tests/value_blocks.rs`. Orchestrator choice 2026-11-23, the recommended
   option of three. The operator can change it.
+- `IngestAlternateEnclosure::sources` holds each `podcast:source` `uri` of
+  a `podcast:alternateEnclosure`, in the sequence of the feed. `url` is the
+  first `http` or `https` source, else the `url` attribute. Orchestrator
+  choice 2026-11-23, for musicindex ADR 0095. The tests are in
+  `tests/alternate_enclosure.rs`.
 
 ## What Is True Here
 

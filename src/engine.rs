@@ -17,6 +17,7 @@ use crate::types::{
     IngestTrackData, IngestTranscript, IngestValueBlock, IngestValueTimeSplit, RouteType,
     ValueTimeSplitForm,
 };
+use crate::web_link::web_url_or_none;
 
 /// Podcast namespace URI used in namespace-aware feeds.
 const PODCAST_NS: &str = "https://podcastindex.org/namespace/1.0";
@@ -1225,6 +1226,12 @@ fn extract_links(node: &roxmltree::Node, entity_type: &str) -> Vec<IngestLink> {
     links
 }
 
+/// Extracts each `podcast:alternateEnclosure` of an item or a live item.
+///
+/// `sources` holds each non-empty `podcast:source` `uri`, trimmed, in the
+/// sequence of the feed. `url` is the first source with the scheme `http` or
+/// `https`. When no source has such a URI, `url` is the `url` attribute of
+/// the element. When the two are missing, the parser skips the element.
 fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEnclosure> {
     let mut enclosures = Vec::new();
 
@@ -1235,11 +1242,30 @@ fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEn
             continue;
         }
 
-        let Some(url) = child
-            .attribute("url")
+        // The specification gives the URIs in `podcast:source` child
+        // elements. The `url` attribute is a fallback for older feeds.
+        let sources: Vec<String> = child
+            .children()
+            .filter(|n| {
+                n.is_element()
+                    && n.tag_name().name() == "source"
+                    && is_podcast_namespace(n.tag_name().namespace())
+            })
+            .filter_map(|n| n.attribute("uri"))
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(str::to_owned)
+            .collect();
+        let Some(url) = sources
+            .iter()
+            .find_map(|source| web_url_or_none(Some(source)))
+            .or_else(|| {
+                child
+                    .attribute("url")
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_owned)
+            })
         else {
             continue;
         };
@@ -1268,6 +1294,7 @@ fn extract_alternate_enclosures(node: &roxmltree::Node) -> Vec<IngestAlternateEn
         enclosures.push(IngestAlternateEnclosure {
             position: usize_to_i64(enclosures.len()),
             url,
+            sources,
             mime_type,
             bytes,
             rel,
