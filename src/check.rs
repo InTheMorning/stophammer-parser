@@ -55,6 +55,7 @@ pub fn required_fields(values: FeedValues) -> Result<IngestFeedData, ParseError>
         locked: values.locked,
         locked_owner: values.locked_owner,
         remote_items: values.remote_items,
+        podroll: values.podroll,
         persons: values.persons,
         entity_ids: values.entity_ids,
         links: values.links,

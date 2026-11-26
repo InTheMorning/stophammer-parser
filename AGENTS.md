@@ -80,6 +80,10 @@ them.
   and the parser does not select an image. The tests are in
   `tests/image_sources.rs`. The stophammer session selected the field names
   on 2026-11-23, from a musicindex-lib proposal.
+- `FeedValues::podroll` holds the `podcast:remoteItem` children of each
+  channel `podcast:podroll`, for stophammer ADR 0107 §1. The entries are not
+  in `remote_items`, and they have their own positions. The tests are in
+  `tests/podroll.rs`.
 
 ## What Is True Here
 

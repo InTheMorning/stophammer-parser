@@ -138,6 +138,7 @@ impl FeedParser {
             (Vec::new(), Vec::new())
         };
         let remote_items = extract_feed_remote_items(&channel);
+        let podroll = extract_feed_podroll(&channel);
         let persons = if self.phases.contains(&Phase::Phase4) {
             extract_persons(&channel)
         } else {
@@ -173,6 +174,7 @@ impl FeedParser {
             locked: feed.locked,
             locked_owner: feed.locked_owner,
             remote_items,
+            podroll,
             persons,
             entity_ids,
             links,
@@ -997,6 +999,28 @@ fn extract_feed_remote_items(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedR
         }
     }
 
+    refs
+}
+
+/// Reads the `podcast:remoteItem` children of each channel
+/// `podcast:podroll` (stophammer ADR 0107 §1). The podroll has its own
+/// positions, and an entry is never a publisher reference.
+fn extract_feed_podroll(channel: &roxmltree::Node) -> Vec<IngestRemoteFeedRef> {
+    let mut refs = Vec::new();
+    let mut position: usize = 0;
+    for podroll in channel.children().filter(|child| {
+        child.is_element()
+            && child.tag_name().name() == "podroll"
+            && is_podcast_namespace(child.tag_name().namespace())
+    }) {
+        for remote in podroll.children().filter(|n| {
+            n.is_element()
+                && n.tag_name().name() == "remoteItem"
+                && is_podcast_namespace(n.tag_name().namespace())
+        }) {
+            append_remote_ref(&mut refs, &mut position, &remote, None, false);
+        }
+    }
     refs
 }
 

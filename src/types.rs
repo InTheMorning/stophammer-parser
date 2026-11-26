@@ -89,6 +89,13 @@ pub struct IngestFeedData<R = String> {
     pub locked_owner: Option<String>,
     /// Feed-level `podcast:remoteItem` references to artist/publisher feeds.
     pub remote_items: Vec<IngestRemoteFeedRef>,
+    /// The `podcast:remoteItem` children of each channel `podcast:podroll`,
+    /// in the sequence of the body, with positions from 0.
+    ///
+    /// Stophammer ADR 0107 §1 owns this field. The entries are not in
+    /// `remote_items`, and `publisher_reference` is always false.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub podroll: Vec<IngestRemoteFeedRef>,
     /// Feed-level contributor claims from `podcast:person`.
     pub persons: Vec<IngestPerson>,
     /// Feed-level identity claims from typed metadata such as `podcast:txt`.
