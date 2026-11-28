@@ -38,6 +38,7 @@ pub mod duration;
 pub mod engine;
 pub mod error;
 pub mod html;
+pub mod medium_group;
 pub mod phase;
 pub mod profile;
 pub mod rule;
